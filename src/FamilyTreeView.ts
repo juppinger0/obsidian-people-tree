@@ -406,7 +406,10 @@ export class FamilyTreeView extends ItemView {
             actCell.createEl('button', { text: '↗', cls: 'ft-list-btn', title: 'Notiz öffnen' })
                 .addEventListener('click', () => this.app.workspace.openLinkText(person.file.path, ''));
             actCell.createEl('button', { text: '📷', cls: 'ft-list-btn', title: 'Foto hochladen/ändern' })
-                .addEventListener('click', () => new AvatarUploadModal(this.app, person, () => this.render()).open());
+                .addEventListener('click', () => {
+                    console.log('[PeopleTree] 📷 button clicked for:', person.name);
+                    new AvatarUploadModal(this.app, person, () => this.render()).open();
+                });
 
             // Inline editing on cell click
             for (const [i, field] of ['born', 'died', 'parents', 'spouse', 'children'].entries()) {
@@ -466,7 +469,14 @@ export class FamilyTreeView extends ItemView {
         this.detailField(detail, person, 'Ehepartner', 'spouse', person.spouse, false);
         this.detailField(detail, person, 'Eltern', 'parents', person.parents.join(', '), true);
         this.detailField(detail, person, 'Kinder', 'children', person.children.join(', '), true);
-        this.detailField(detail, person, 'Foto (Vault-Pfad)', 'avatar', person.avatar, false);
+        // Avatar-Zeile mit 📷-Button
+        const avatarRow = detail.createDiv({ cls: 'ft-detail-row' });
+        avatarRow.createEl('span', { cls: 'ft-label', text: 'Foto' });
+        const avatarVal = avatarRow.createEl('span', { cls: 'ft-val', text: person.avatar || '—' });
+        avatarVal.title = 'Klick zum Bearbeiten (Vault-Pfad)';
+        avatarVal.addEventListener('click', (e) => { e.stopPropagation(); this.inlineEdit(avatarVal, person, 'avatar', person.avatar, false); });
+        avatarRow.createEl('button', { cls: 'ft-icon-btn', text: '📷', title: 'Foto hochladen' })
+            .addEventListener('click', (e) => { e.stopPropagation(); new AvatarUploadModal(this.app, person, () => this.render()).open(); });
 
         for (const [key, val] of Object.entries(person.extra)) {
             const v = Array.isArray(val) ? (val as string[]).join(', ') : String(val ?? '');
@@ -661,6 +671,7 @@ class AvatarUploadModal extends Modal {
     }
 
     onOpen() {
+        console.log('[PeopleTree] AvatarUploadModal.onOpen() for:', this.person.name);
         const { contentEl } = this;
         contentEl.createEl('h3', { text: `Photo for ${this.person.name}` });
 
