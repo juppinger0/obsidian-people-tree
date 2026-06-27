@@ -1088,13 +1088,12 @@ class AddPersonModal extends Modal {
     }
 
     private getUnlinkedPersons(): string[] {
-        const alreadyLinked = new Set<string>();
-        if (this.relPerson) {
-            if (this.relation === 'child') this.relPerson.children.forEach(n => alreadyLinked.add(n));
-            if (this.relation === 'parent') this.relPerson.parents.forEach(n => alreadyLinked.add(n));
-        }
+        if (this.relation === 'none' || !this.relPerson) return [];
+        const alreadyLinked = new Set<string>([this.relPerson.name]);
+        if (this.relation === 'child') this.relPerson.children.forEach(n => alreadyLinked.add(n));
+        if (this.relation === 'parent') this.relPerson.parents.forEach(n => alreadyLinked.add(n));
         return [...this.existingPersons.keys()]
-            .filter(n => n !== this.relPerson?.name && !alreadyLinked.has(n))
+            .filter(n => !alreadyLinked.has(n))
             .sort();
     }
 
