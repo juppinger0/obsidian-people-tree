@@ -38,6 +38,9 @@ export class FamilyTreeView extends ItemView {
     private sortField = 'name';
     private sortDir: 1 | -1 = 1;
     private listTbody: HTMLElement | null = null;
+    private layoutPos: Map<string, { x: number; y: number }> = new Map();
+    private layoutW = 0;
+    private layoutH = 0;
 
     constructor(leaf: WorkspaceLeaf, private app: App, private settings: PeopleTreeSettings) { super(leaf); }
 
@@ -128,7 +131,7 @@ export class FamilyTreeView extends ItemView {
         root.empty();
 
         if (this.persons.size === 0) {
-            root.createEl('p', { text: 'Keine Personen gefunden. Notizen mit type: person anlegen.', cls: 'ft-empty' });
+            this.renderOnboarding(root);
             return;
         }
 
@@ -151,6 +154,39 @@ export class FamilyTreeView extends ItemView {
         if (this.selectedPerson) this.applySelection(this.selectedPerson);
         this.setupZoomPan(viewport, canvas);
         this.applyTransform(canvas);
+    }
+
+    // ── Onboarding ────────────────────────────────────────────────────────
+
+    private renderOnboarding(root: HTMLElement) {
+        const card = root.createDiv({ cls: 'ft-onboarding' });
+        card.createDiv({ cls: 'ft-onboarding-icon', text: '👥' });
+        card.createEl('h2', { cls: 'ft-onboarding-title', text: 'Welcome to People Tree' });
+        card.createEl('p', { cls: 'ft-onboarding-desc', text: 'No person notes found yet. Create Markdown notes with type: person in the frontmatter — People Tree picks them up automatically.' });
+
+        const steps = card.createEl('ol', { cls: 'ft-onboarding-steps' });
+        steps.createEl('li', { text: 'Click the button below to create your first person note.' });
+        steps.createEl('li', { text: 'Fill in name, born, parents, children as needed.' });
+        steps.createEl('li', { text: 'The tree updates automatically.' });
+        if (this.settings.personFolder) {
+            card.createEl('p', { cls: 'ft-onboarding-hint', text: `Scanning folder: ${this.settings.personFolder}` });
+        }
+
+        const btn = card.createEl('button', { cls: 'ft-onboarding-btn', text: '+ Create first person' });
+        btn.addEventListener('click', () => this.createPersonNote());
+    }
+
+    private async createPersonNote() {
+        const folder = this.settings.personFolder?.trim() || '';
+        const base = 'New Person';
+        let path = folder ? `${folder}/${base}.md` : `${base}.md`;
+        if (folder && !this.app.vault.getAbstractFileByPath(folder)) {
+            await this.app.vault.createFolder(folder);
+        }
+        if (!this.app.vault.getAbstractFileByPath(path)) {
+            await this.app.vault.create(path, `---\ntype: person\nname: ${base}\nborn: \ndied: \nparents: \nspouse: \nchildren: \n---\n`);
+        }
+        await this.app.workspace.openLinkText(path, '');
     }
 
     // ── Toolbar ───────────────────────────────────────────────────────────
@@ -180,6 +216,10 @@ export class FamilyTreeView extends ItemView {
             z('+', 'Hineinzoomen', () => { this.zoom = Math.min(this.zoom * 1.2, 4); this.applyTransform(this.getCanvas()); });
             z('−', 'Herauszoomen', () => { this.zoom = Math.max(this.zoom / 1.2, 0.15); this.applyTransform(this.getCanvas()); });
             z('⌂', 'Zurücksetzen', () => { this.zoom = 1; this.panX = 0; this.panY = 0; this.applyTransform(this.getCanvas()); });
+
+            const exportBtn = tb.createEl('button', { cls: 'ft-export-btn', title: 'Als PNG herunterladen' });
+            exportBtn.createSpan({ text: '⬇ PNG' });
+            exportBtn.addEventListener('click', () => this.exportPng());
         }
 
         if (this.viewMode === 'list') {
@@ -218,16 +258,38 @@ export class FamilyTreeView extends ItemView {
             });
         }
 
+        this.layoutPos = pos;
+        this.layoutW = totalW;
+        this.layoutH = totalH;
+
+        // Spouse connections + diamond markers
+        for (const person of this.persons.values()) {
+            if (person.spouse && person.name < person.spouse) {
+                const sp = pos.get(person.spouse), p1 = pos.get(person.name);
+                if (sp && p1) {
+                    this.drawConnector(svg, p1.x + NODE_W, p1.y + NODE_H / 2, sp.x, sp.y + NODE_H / 2, person.name, person.spouse, 'spouse');
+                    this.drawSpouseMarker(svg, (p1.x + NODE_W + sp.x) / 2, p1.y + NODE_H / 2);
+                }
+            }
+        }
+
+        // Parent→child connections — single line from couple midpoint when both parents are spouses
         for (const person of this.persons.values()) {
             const cp = pos.get(person.name);
             if (!cp) continue;
+            if (person.parents.length === 2) {
+                const [p1n, p2n] = person.parents;
+                const pp1 = pos.get(p1n), pp2 = pos.get(p2n);
+                const par1 = this.persons.get(p1n), par2 = this.persons.get(p2n);
+                if (pp1 && pp2 && par1 && par2 && (par1.spouse === p2n || par2.spouse === p1n)) {
+                    const midX = (pp1.x + pp2.x + NODE_W) / 2;
+                    this.drawConnector(svg, midX, pp1.y + NODE_H, cp.x + NODE_W / 2, cp.y, p1n, person.name, 'parent');
+                    continue;
+                }
+            }
             for (const pn of person.parents) {
                 const pp = pos.get(pn);
                 if (pp) this.drawConnector(svg, pp.x + NODE_W / 2, pp.y + NODE_H, cp.x + NODE_W / 2, cp.y, pn, person.name, 'parent');
-            }
-            if (person.spouse && person.name < person.spouse) {
-                const sp = pos.get(person.spouse), p1 = pos.get(person.name);
-                if (sp && p1) this.drawConnector(svg, p1.x + NODE_W, p1.y + NODE_H / 2, sp.x, sp.y + NODE_H / 2, person.name, person.spouse, 'spouse');
             }
         }
     }
@@ -282,6 +344,13 @@ export class FamilyTreeView extends ItemView {
             }
         }
 
+        // Store layout (pos has center-X; adjust to top-left for export)
+        const tlAdjusted = new Map<string, { x: number; y: number }>();
+        for (const [n, p] of pos) tlAdjusted.set(n, { x: p.x - NODE_W / 2, y: p.y });
+        this.layoutPos = tlAdjusted;
+        this.layoutW = totalW;
+        this.layoutH = totalH;
+
         // Draw connections
         for (const person of this.persons.values()) {
             const cp = pos.get(person.name);
@@ -292,7 +361,10 @@ export class FamilyTreeView extends ItemView {
             }
             if (person.spouse && person.name < person.spouse) {
                 const sp = pos.get(person.spouse), p1 = pos.get(person.name);
-                if (sp && p1) this.drawConnector(svg, p1.x + NODE_W / 2, p1.y + NODE_H / 2, sp.x - NODE_W / 2, sp.y + NODE_H / 2, person.name, person.spouse, 'spouse');
+                if (sp && p1) {
+                    this.drawConnector(svg, p1.x + NODE_W / 2, p1.y + NODE_H / 2, sp.x - NODE_W / 2, sp.y + NODE_H / 2, person.name, person.spouse, 'spouse');
+                    this.drawSpouseMarker(svg, (p1.x + NODE_W / 2 + sp.x - NODE_W / 2) / 2, p1.y + NODE_H / 2);
+                }
             }
         }
     }
@@ -661,6 +733,108 @@ export class FamilyTreeView extends ItemView {
         }
         svg.appendChild(el);
     }
+
+    private drawSpouseMarker(svg: SVGElement, mx: number, my: number) {
+        const d = 5;
+        const diamond = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        diamond.setAttribute('points', `${mx},${my - d} ${mx + d},${my} ${mx},${my + d} ${mx - d},${my}`);
+        diamond.classList.add('ft-spouse-marker');
+        svg.appendChild(diamond);
+    }
+
+    // ── PNG Export ────────────────────────────────────────────────────────
+
+    private async exportPng() {
+        if (this.persons.size === 0 || this.layoutW === 0 || this.viewMode === 'list') return;
+        const scale = 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = this.layoutW * scale;
+        canvas.height = this.layoutH * scale;
+        const ctx = canvas.getContext('2d')!;
+        ctx.scale(scale, scale);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, this.layoutW, this.layoutH);
+
+        // Connections
+        for (const person of this.persons.values()) {
+            const cp = this.layoutPos.get(person.name);
+            if (!cp) continue;
+            if (person.parents.length === 2) {
+                const [p1n, p2n] = person.parents;
+                const pp1 = this.layoutPos.get(p1n), pp2 = this.layoutPos.get(p2n);
+                const par1 = this.persons.get(p1n), par2 = this.persons.get(p2n);
+                if (pp1 && pp2 && par1 && par2 && (par1.spouse === p2n || par2.spouse === p1n)) {
+                    const midX = (pp1.x + pp2.x + NODE_W) / 2;
+                    this.canvasConnector(ctx, midX, pp1.y + NODE_H, cp.x + NODE_W / 2, cp.y, 'parent');
+                    continue;
+                }
+            }
+            for (const pn of person.parents) {
+                const pp = this.layoutPos.get(pn);
+                if (pp) this.canvasConnector(ctx, pp.x + NODE_W / 2, pp.y + NODE_H, cp.x + NODE_W / 2, cp.y, 'parent');
+            }
+            if (person.spouse && person.name < person.spouse) {
+                const sp = this.layoutPos.get(person.spouse);
+                if (sp) this.canvasConnector(ctx, cp.x + NODE_W, cp.y + NODE_H / 2, sp.x, sp.y + NODE_H / 2, 'spouse');
+            }
+        }
+
+        // Person cards
+        ctx.globalAlpha = 1;
+        for (const [name, { x, y }] of this.layoutPos) {
+            const person = this.persons.get(name);
+            if (!person) continue;
+
+            ctx.shadowColor = 'rgba(0,0,0,0.12)';
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetY = 2;
+            ctx.fillStyle = '#f5f5f5';
+            canvasRoundRect(ctx, x, y, NODE_W, NODE_H, 8);
+            ctx.fill();
+            ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+            ctx.strokeStyle = '#d8d8d8'; ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Avatar circle
+            ctx.fillStyle = '#e2e2e2';
+            ctx.beginPath(); ctx.arc(x + 26, y + NODE_H / 2, 18, 0, Math.PI * 2); ctx.fill();
+            const ini = name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
+            ctx.fillStyle = '#888'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText(ini, x + 26, y + NODE_H / 2 + 4);
+
+            // Text
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#1a1a1a'; ctx.font = 'bold 12px sans-serif';
+            ctx.fillText(truncate(name, 22), x + 52, y + 28);
+            ctx.fillStyle = '#888'; ctx.font = '10px sans-serif';
+            ctx.fillText(formatDates(person.born, person.died), x + 52, y + 44);
+        }
+
+        canvas.toBlob(blob => {
+            if (!blob) return;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `people-tree-${new Date().toISOString().slice(0, 10)}.png`;
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
+        }, 'image/png');
+    }
+
+    private canvasConnector(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, type: 'parent' | 'spouse') {
+        ctx.beginPath();
+        if (type === 'parent') {
+            ctx.strokeStyle = '#7c3aed'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.55; ctx.setLineDash([]);
+            const my = (y1 + y2) / 2;
+            if (this.viewMode === 'orgchart') { ctx.moveTo(x1, y1); ctx.lineTo(x1, my); ctx.lineTo(x2, my); ctx.lineTo(x2, y2); }
+            else { ctx.moveTo(x1, y1); ctx.bezierCurveTo(x1, my, x2, my, x2, y2); }
+        } else {
+            ctx.strokeStyle = '#d946ef'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.65; ctx.setLineDash([5, 4]);
+            ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+        }
+        ctx.stroke(); ctx.setLineDash([]);
+    }
 }
 
 // ── Avatar Upload Modal ───────────────────────────────────────────────────
@@ -775,4 +949,18 @@ function extractYear(dateStr: string): number | null {
 
 function formatDates(born: string, died: string): string {
     return (born ? `* ${born}` : '* ?') + (died ? ` † ${died}` : '');
+}
+
+function canvasRoundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+}
+
+function truncate(s: string, max: number): string {
+    return s.length > max ? s.slice(0, max - 1) + '…' : s;
 }

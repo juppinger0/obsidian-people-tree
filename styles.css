@@ -564,3 +564,92 @@
 .ft-drop-icon { font-size: 2em; margin-bottom: 6px; }
 .ft-drop-label { font-size: 0.9em; color: var(--text-normal); font-weight: 500; }
 .ft-drop-sub { font-size: 0.75em; color: var(--text-faint); margin-top: 3px; }
+
+/* ── Onboarding ─────────────────────────────────────────────────────────── */
+
+.ft-onboarding {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 40px 24px;
+    text-align: center;
+    gap: 10px;
+}
+
+.ft-onboarding-icon { font-size: 3.2em; line-height: 1; }
+
+.ft-onboarding-title {
+    font-size: 1.3em;
+    font-weight: 700;
+    color: var(--text-normal);
+    margin: 4px 0 0;
+}
+
+.ft-onboarding-desc {
+    font-size: 0.88em;
+    color: var(--text-muted);
+    max-width: 380px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.ft-onboarding-steps {
+    font-size: 0.84em;
+    color: var(--text-muted);
+    text-align: left;
+    max-width: 340px;
+    padding-left: 18px;
+    line-height: 1.7;
+    margin: 4px 0;
+}
+
+.ft-onboarding-hint {
+    font-size: 0.75em;
+    color: var(--text-faint);
+    margin: 0;
+}
+
+.ft-onboarding-btn {
+    margin-top: 8px;
+    padding: 8px 22px;
+    border-radius: 8px;
+    border: none;
+    background: var(--color-accent);
+    color: #fff;
+    font-size: 0.92em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.ft-onboarding-btn:hover { opacity: 0.85; }
+
+/* ── Export button ──────────────────────────────────────────────────────── */
+
+.ft-export-btn {
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-primary);
+    color: var(--text-muted);
+    font-size: 0.78em;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.1s, color 0.1s;
+}
+
+.ft-export-btn:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+/* ── Spouse marker ──────────────────────────────────────────────────────── */
+
+.ft-spouse-marker {
+    fill: #e879f9;
+    opacity: 0.75;
+    pointer-events: none;
+}
