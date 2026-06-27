@@ -1,4 +1,5 @@
 import { App, ItemView, Modal, TFile, WorkspaceLeaf } from 'obsidian';
+import type { PeopleTreeSettings } from './main';
 
 export const VIEW_TYPE_FAMILY_TREE = 'people-tree-view';
 
@@ -38,7 +39,7 @@ export class FamilyTreeView extends ItemView {
     private sortDir: 1 | -1 = 1;
     private listTbody: HTMLElement | null = null;
 
-    constructor(leaf: WorkspaceLeaf, private app: App) { super(leaf); }
+    constructor(leaf: WorkspaceLeaf, private app: App, private settings: PeopleTreeSettings) { super(leaf); }
 
     getViewType() { return VIEW_TYPE_FAMILY_TREE; }
     getDisplayText() { return 'People Tree'; }
@@ -55,7 +56,9 @@ export class FamilyTreeView extends ItemView {
 
     private async loadPersons() {
         this.persons.clear();
+        const folder = this.settings.personFolder;
         for (const file of this.app.vault.getMarkdownFiles()) {
+            if (folder && !file.path.startsWith(folder)) continue;
             const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
             if (!fm || fm.type !== 'person') continue;
             const { type: _t, name: fmName, born, died, avatar, parents, spouse, children, position: _p, ...extra } = fm;
@@ -406,10 +409,7 @@ export class FamilyTreeView extends ItemView {
             actCell.createEl('button', { text: '↗', cls: 'ft-list-btn', title: 'Notiz öffnen' })
                 .addEventListener('click', () => this.app.workspace.openLinkText(person.file.path, ''));
             actCell.createEl('button', { text: '📷', cls: 'ft-list-btn', title: 'Foto hochladen/ändern' })
-                .addEventListener('click', () => {
-                    console.log('[PeopleTree] 📷 button clicked for:', person.name);
-                    new AvatarUploadModal(this.app, person, () => this.render()).open();
-                });
+                .addEventListener('click', () => new AvatarUploadModal(this.app, person, this.settings.photosFolder, () => this.render()).open());
 
             // Inline editing on cell click
             for (const [i, field] of ['born', 'died', 'parents', 'spouse', 'children'].entries()) {
@@ -476,7 +476,7 @@ export class FamilyTreeView extends ItemView {
         avatarVal.title = 'Klick zum Bearbeiten (Vault-Pfad)';
         avatarVal.addEventListener('click', (e) => { e.stopPropagation(); this.inlineEdit(avatarVal, person, 'avatar', person.avatar, false); });
         avatarRow.createEl('button', { cls: 'ft-icon-btn', text: '📷', title: 'Foto hochladen' })
-            .addEventListener('click', (e) => { e.stopPropagation(); new AvatarUploadModal(this.app, person, () => this.render()).open(); });
+            .addEventListener('click', (e) => { e.stopPropagation(); new AvatarUploadModal(this.app, person, this.settings.photosFolder, () => this.render()).open(); });
 
         for (const [key, val] of Object.entries(person.extra)) {
             const v = Array.isArray(val) ? (val as string[]).join(', ') : String(val ?? '');
@@ -666,7 +666,7 @@ export class FamilyTreeView extends ItemView {
 // ── Avatar Upload Modal ───────────────────────────────────────────────────
 
 class AvatarUploadModal extends Modal {
-    constructor(private readonly obsApp: App, private readonly person: Person, private readonly onDone: () => void) {
+    constructor(private readonly obsApp: App, private readonly person: Person, private readonly photosFolder: string, private readonly onDone: () => void) {
         super(obsApp);
     }
 
@@ -705,7 +705,7 @@ class AvatarUploadModal extends Modal {
 
         // ── Option C: vault path ────────────────────────────────────────
         contentEl.createEl('p', { text: 'Or paste a vault-relative path (file already in vault):', cls: 'ft-modal-label' });
-        const pathInput = contentEl.createEl('input', { type: 'text', placeholder: '02 Areas/Familie/Fotos/name.jpg' }) as HTMLInputElement;
+        const pathInput = contentEl.createEl('input', { type: 'text', placeholder: `${this.photosFolder}/name.jpg` }) as HTMLInputElement;
         pathInput.style.cssText = 'display:block;width:100%;margin-bottom:6px';
         pathInput.value = this.person.avatar ?? '';
         const savePathBtn = contentEl.createEl('button', { text: 'Save path', cls: 'ft-modal-btn' });
@@ -726,7 +726,7 @@ class AvatarUploadModal extends Modal {
 
     private async saveFile(buffer: ArrayBuffer, filename: string) {
         const ext = (filename.split('.').pop() ?? 'jpg').toLowerCase();
-        const folderPath = '02 Areas/Familie/Fotos';
+        const folderPath = this.photosFolder;
         const targetPath = `${folderPath}/${this.person.name}.${ext}`;
         try {
             if (!this.obsApp.vault.getAbstractFileByPath(folderPath)) {

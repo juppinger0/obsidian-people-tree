@@ -1,6 +1,6 @@
 # People Tree — Obsidian Plugin
 
-An interactive family tree, org chart and timeline viewer for [Obsidian](https://obsidian.md). All data lives in your vault as plain Markdown notes with YAML frontmatter — no external services, no proprietary formats.
+An interactive family tree, org chart and timeline viewer for [Obsidian](https://obsidian.md). All data lives in your vault as plain Markdown notes with YAML frontmatter — no external services, no proprietary formats, no telemetry.
 
 ---
 
@@ -13,17 +13,20 @@ An interactive family tree, org chart and timeline viewer for [Obsidian](https:/
 - **Selection highlighting** — click a node to highlight it and all direct connections; everything else dims
 - **Zoom & pan** — mouse wheel to zoom, drag to pan (Tree / Org Chart / Timeline)
 - **Sortable list** — click any column header to sort ascending / descending
+- **Configurable** — set your preferred photos folder and optional person-notes folder in Settings
 
 ---
 
-## Installation (manual)
+## Installation
 
-Until the plugin is available in the Obsidian Community Store, install it manually:
+### Community Plugin Store *(coming soon)*
+Search for **"People Tree"** in Obsidian → Settings → Community plugins.
 
+### Manual
 1. Download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/juppinger0/obsidian-family-tree/releases).
 2. Copy all three files into your vault under `.obsidian/plugins/people-tree/`.
 3. In Obsidian: **Settings → Community plugins → enable "People Tree"**.
-4. Click the 👥 icon in the left ribbon, or run **"People Tree öffnen"** from the command palette.
+4. Click the 👥 icon in the left ribbon, or run **"Open People Tree"** from the command palette.
 
 ---
 
@@ -37,7 +40,7 @@ type: person
 name: Jane Doe
 born: 15.03.1970
 died:
-avatar: 02 Areas/Familie/Fotos/jane.jpg
+avatar: Attachments/Photos/jane.jpg
 parents:
   - John Doe
   - Mary Doe
@@ -58,11 +61,22 @@ The plugin picks up the note automatically — no configuration needed. Names in
 | `name` | No | Display name. Defaults to the file name if omitted. |
 | `born` | No | Birth date (any format). Used to place nodes on the Timeline axis. |
 | `died` | No | Death date. |
-| `avatar` | No | Vault-relative path to an image file (e.g. `Fotos/jane.jpg`). |
+| `avatar` | No | Vault-relative path to an image file (e.g. `Attachments/Photos/jane.jpg`). |
 | `parents` | No | List of parent names. Draws parent → child connection lines. |
 | `spouse` | No | Name of spouse/partner. Draws a dashed line between the two nodes. |
 | `children` | No | List of children's names. |
 | *any other field* | No | Shown in the expanded detail panel; editable inline. |
+
+---
+
+## Settings
+
+Open **Settings → People Tree**:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Photos folder | `Attachments/Photos` | Vault-relative folder where uploaded photos are saved. |
+| Person notes folder | *(empty)* | Limit person scan to this folder. Leave empty to search the whole vault. |
 
 ---
 
@@ -77,7 +91,7 @@ Classic top-down family tree with smooth Bézier curves connecting parents to ch
 Same layout as Tree, but connections use right-angle elbow lines — useful for hierarchical org structures.
 
 ### 📅 Timeline
-Nodes are positioned horizontally by birth year. Useful for spotting generational overlaps and lifespans at a glance. Requires `born` fields with a 4-digit year.
+Nodes are positioned horizontally by birth year. Useful for spotting generational overlaps and lifespans. Requires `born` fields with a 4-digit year.
 
 ### 📋 List
 Searchable, sortable table of all persons. Click any column header to sort. Click a cell to edit the value inline.
@@ -86,32 +100,25 @@ Searchable, sortable table of all persons. Click any column header to sort. Clic
 
 ## Adding photos
 
-In **List mode**, click the **📷** button at the end of any row. A dialog appears with two options:
+**In List mode:** click the **📷** button at the end of any row.
 
-**Option A — Upload from your computer**
-Click **"📁 Choose image file…"** to open your file browser. The image is copied into `02 Areas/Familie/Fotos/` inside your vault and the `avatar` path is written to the person's frontmatter automatically.
+**In Tree / Org Chart / Timeline:** expand a node with **▼**, then click **📷** next to the "Photo" field.
 
-**Option B — Use a file already in your vault**
-Type the vault-relative path into the text field (e.g. `Fotos/jane.jpg`) and click **"Save path"**.
+A dialog opens with two options:
 
-To remove a photo, open the dialog and click **"Remove photo"**.
+- **Drag & drop** an image from your file manager onto the drop zone
+- **Pick a file** using the native file browser (desktop only)
+- **Enter a vault path** if the image is already in your vault
+
+The uploaded photo is saved to the configured *Photos folder* (default: `Attachments/Photos/`) and the `avatar` path is written to the frontmatter automatically.
 
 ---
 
 ## Editing data
 
-- **In List mode**: click any data cell (Born, Died, Parents, etc.) to edit it inline. Press `Enter` to save, `Esc` to cancel.
-- **In Tree / Org Chart / Timeline**: click the **▼** button on a node to expand the detail panel. Click any field value to edit it. Use **"+ Add field"** to add a new custom frontmatter field.
-- **In all modes**: changes are written directly to the note's YAML frontmatter. The view refreshes automatically when a note changes.
-
----
-
-## Notes
-
-- The plugin scans **all** Markdown files in the vault. Only notes with `type: person` in the frontmatter are included.
-- Relationship lines are drawn only when names match exactly (case-sensitive).
-- The Timeline mode requires at least two persons with a 4-digit year in their `born` field.
-- Photos are stored as binary files in the vault and are not tracked by git unless you configure git-lfs.
+- **In List mode**: click any data cell to edit it inline. Press `Enter` to save, `Esc` to cancel.
+- **In Tree / Org Chart / Timeline**: click **▼** on a node to expand the detail panel. Click any field value to edit. Use **"+ Add field"** to add a custom frontmatter field.
+- Changes are written directly to the note's YAML frontmatter and the view refreshes automatically.
 
 ---
 
@@ -119,9 +126,27 @@ To remove a photo, open the dialog and click **"Remove photo"**.
 
 | # | Issue | Status |
 |---|-------|--------|
-| 1 | **Photo upload only works reliably in List mode** via the 📷 button. In Tree/Org-Chart/Timeline the modal opens but the native file picker may be blocked by Electron's security sandbox. Workaround: switch to List mode, upload there, then switch back. | open |
-| 2 | Long field values (e.g. vault paths) wrap awkwardly in narrow tree nodes. Hover to reveal full text. | partially fixed |
+| 1 | **Photo upload via file picker may not work in all Electron versions.** Use drag & drop in the modal as a reliable alternative. | open |
+| 2 | Long field values are truncated in tree nodes (hover to reveal full text). | partial fix |
 | 3 | Timeline mode requires at least 2 persons with a 4-digit year in `born`. | by design |
+| 4 | No mobile-optimised touch controls for zoom/pan yet. | todo |
+
+---
+
+## Privacy & Security
+
+- **No external network calls.** The plugin works fully offline.
+- **No telemetry or analytics.**
+- **All data stays in your vault.** Photos are copied into your vault folder; nothing is sent anywhere.
+- The plugin only reads vault files and writes to frontmatter and the configured photos folder.
+
+---
+
+## Notes
+
+- The plugin scans all Markdown files in the vault (or the configured folder). Only notes with `type: person` are included.
+- Relationship lines are drawn only when names match exactly (case-sensitive).
+- Photos are stored as binary files in the vault. They are not git-tracked unless you configure git-lfs.
 
 ---
 
@@ -134,10 +159,10 @@ npm install
 npm run build        # production build → main.js
 ```
 
-Copy `main.js`, `manifest.json` and `styles.css` to your vault's `.obsidian/plugins/people-tree/` folder and reload the plugin.
+Copy `main.js`, `manifest.json` and `styles.css` to `.obsidian/plugins/people-tree/` in your vault and reload the plugin in Obsidian.
 
 ---
 
 ## License
 
-MIT
+MIT — © Jörg Lortz
