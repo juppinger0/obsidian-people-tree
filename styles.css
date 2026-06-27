@@ -531,3 +531,20 @@
     display: block;
     margin-top: 12px;
 }
+
+.ft-file-label {
+    display: inline-block;
+    position: relative;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--color-accent);
+    background: var(--color-accent);
+    color: #fff;
+    font-size: 0.85em;
+    cursor: pointer;
+    margin-top: 4px;
+}
+
+.ft-file-label:hover {
+    opacity: 0.88;
+}

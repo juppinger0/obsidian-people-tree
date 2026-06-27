@@ -662,31 +662,30 @@ class AvatarUploadModal extends Modal {
 
     onOpen() {
         const { contentEl } = this;
-        contentEl.createEl('h3', { text: `Foto für ${this.person.name}` });
+        contentEl.createEl('h3', { text: `Photo for ${this.person.name}` });
 
-        // File upload from computer
+        // Direct file input — must be a real user gesture on the input itself, no JS .click() wrapper
         const section1 = contentEl.createDiv({ cls: 'ft-modal-section' });
-        section1.createEl('p', { text: 'Vom Computer hochladen:', cls: 'ft-modal-label' });
-        const fileInput = section1.createEl('input', { type: 'file' }) as HTMLInputElement;
+        section1.createEl('p', { text: 'Upload from your computer:', cls: 'ft-modal-label' });
+        const fileLabel = section1.createEl('label', { cls: 'ft-file-label' });
+        fileLabel.textContent = '📁 Choose image file…';
+        const fileInput = fileLabel.createEl('input', { type: 'file' }) as HTMLInputElement;
         fileInput.accept = 'image/png,image/jpeg,image/gif,image/webp';
-        fileInput.style.display = 'block';
-        fileInput.style.marginBottom = '8px';
+        fileInput.style.cssText = 'position:absolute;opacity:0;width:0;height:0';
         fileInput.addEventListener('change', async () => {
             const file = fileInput.files?.[0];
             if (!file) return;
+            fileLabel.textContent = `⏳ ${file.name}…`;
             await this.saveFile(await file.arrayBuffer(), file.name);
         });
 
-        const uploadBtn = section1.createEl('button', { text: 'Datei wählen & hochladen', cls: 'ft-modal-btn mod-cta' });
-        uploadBtn.addEventListener('click', () => fileInput.click());
-
-        // Manual path input
+        // Vault path input
         const section2 = contentEl.createDiv({ cls: 'ft-modal-section' });
-        section2.createEl('p', { text: 'Oder Vault-Pfad (bereits im Vault):', cls: 'ft-modal-label' });
+        section2.createEl('p', { text: 'Or enter a vault-relative path (already in vault):', cls: 'ft-modal-label' });
         const pathInput = section2.createEl('input', { type: 'text', placeholder: '02 Areas/Familie/Fotos/name.jpg' }) as HTMLInputElement;
         pathInput.style.width = '100%';
         pathInput.value = this.person.avatar ?? '';
-        const savePathBtn = section2.createEl('button', { text: 'Pfad speichern', cls: 'ft-modal-btn' });
+        const savePathBtn = section2.createEl('button', { text: 'Save path', cls: 'ft-modal-btn' });
         savePathBtn.addEventListener('click', async () => {
             await this.obsApp.fileManager.processFrontMatter(this.person.file, (fm) => { fm.avatar = pathInput.value.trim() || null; });
             this.close();
@@ -695,7 +694,7 @@ class AvatarUploadModal extends Modal {
         pathInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') savePathBtn.click(); });
 
         if (this.person.avatar) {
-            const clear = contentEl.createEl('button', { text: 'Foto entfernen', cls: 'ft-modal-btn ft-modal-btn-danger' });
+            const clear = contentEl.createEl('button', { text: 'Remove photo', cls: 'ft-modal-btn ft-modal-btn-danger' });
             clear.addEventListener('click', async () => {
                 await this.obsApp.fileManager.processFrontMatter(this.person.file, (fm) => { fm.avatar = null; });
                 this.close();
