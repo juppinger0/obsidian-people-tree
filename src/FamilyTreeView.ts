@@ -123,6 +123,7 @@ export class FamilyTreeView extends ItemView {
     // ── Render dispatch ───────────────────────────────────────────────────
 
     async render() {
+        document.querySelectorAll('.ft-autocomplete').forEach(el => el.remove());
         await this.loadPersons();
         this.assignGenerations();
         this.assignColumns();
@@ -209,7 +210,7 @@ export class FamilyTreeView extends ItemView {
 
         const newPersonBtn = tb.createEl('button', { cls: 'ft-new-person-btn', title: 'Neue Person anlegen' });
         newPersonBtn.createSpan({ text: '+ Person' });
-        newPersonBtn.addEventListener('click', () => new AddPersonModal(this.app, 'none', null, this.settings.personFolder, () => this.render()).open());
+        newPersonBtn.addEventListener('click', () => new AddPersonModal(this.app, 'none', null, this.settings.personFolder, () => this.render(), this.persons).open());
 
         if (this.viewMode !== 'list') {
             const zoomGroup = tb.createDiv({ cls: 'ft-zoom-group' });
@@ -497,12 +498,14 @@ export class FamilyTreeView extends ItemView {
                 cell.title = 'Klick zum Bearbeiten';
                 cell.addEventListener('click', () => {
                     if (cell.querySelector('input')) return;
+                    const personFields = ['parents', 'children', 'spouse'];
+                    const sugg = personFields.includes(field) ? [...this.persons.keys()] : [];
                     this.startEdit(cell, rawVal, async (v) => {
                         cell.textContent = v || '—';
                         await this.app.fileManager.processFrontMatter(person.file, (fm) => {
                             fm[field] = isArr ? v.split(',').map((s: string) => s.trim()).filter(Boolean) : (v || null);
                         });
-                    }, () => { cell.textContent = rawVal || '—'; });
+                    }, () => { cell.textContent = rawVal || '—'; }, sugg);
                 });
             }
         }
@@ -611,7 +614,7 @@ export class FamilyTreeView extends ItemView {
         val.title = 'Klick zum Bearbeiten';
         val.addEventListener('click', (e) => { e.stopPropagation(); this.inlineEdit(val, person, field, value, true); });
         const addBtn = row.createEl('button', { cls: 'ft-icon-btn', text: '+', title: `${label.slice(0, -1)} hinzufügen` });
-        addBtn.addEventListener('click', (e) => { e.stopPropagation(); new AddPersonModal(this.app, relation, person, this.settings.personFolder, () => this.render()).open(); });
+        addBtn.addEventListener('click', (e) => { e.stopPropagation(); new AddPersonModal(this.app, relation, person, this.settings.personFolder, () => this.render(), this.persons).open(); });
     }
 
     private async deletePerson(person: Person) {
@@ -668,24 +671,80 @@ export class FamilyTreeView extends ItemView {
 
     private inlineEdit(el: HTMLElement, person: Person, field: string, raw: string, isArray: boolean) {
         if (el.querySelector('input')) return;
+        const personNameFields = ['parents', 'children', 'spouse'];
+        const suggestions = personNameFields.includes(field) ? [...this.persons.keys()] : [];
         this.startEdit(el, raw, async (v) => {
             el.textContent = v || '—';
             await this.app.fileManager.processFrontMatter(person.file, (fm) => {
                 fm[field] = isArray ? v.split(',').map((s: string) => s.trim()).filter(Boolean) : (v || null);
             });
-        }, () => { el.textContent = raw || '—'; });
+        }, () => { el.textContent = raw || '—'; }, suggestions);
     }
 
-    private startEdit(el: HTMLElement, value: string, onSave: (v: string) => Promise<void>, onCancel: () => void) {
+    private startEdit(el: HTMLElement, value: string, onSave: (v: string) => Promise<void>, onCancel: () => void, suggestions: string[] = []) {
         const input = createEl('input', { type: 'text', value, cls: 'ft-inline-input' });
         el.empty(); el.appendChild(input);
         input.focus(); input.select();
+
+        let dropdown: HTMLElement | null = null;
+        const closeDropdown = () => { dropdown?.remove(); dropdown = null; };
+
+        if (suggestions.length) {
+            dropdown = document.body.createDiv({ cls: 'ft-autocomplete' });
+
+            const refreshDropdown = () => {
+                if (!dropdown) return;
+                const parts = input.value.split(',');
+                const token = parts[parts.length - 1].trim().toLowerCase();
+                dropdown.empty();
+                if (!token) { dropdown.style.display = 'none'; return; }
+
+                const matches = suggestions
+                    .filter(s => s.toLowerCase().includes(token))
+                    .slice(0, 8);
+
+                if (!matches.length) { dropdown.style.display = 'none'; return; }
+
+                const rect = input.getBoundingClientRect();
+                Object.assign(dropdown.style, {
+                    display: 'block',
+                    top: (rect.bottom + 2) + 'px',
+                    left: rect.left + 'px',
+                    minWidth: Math.max(rect.width, 160) + 'px',
+                });
+
+                for (const match of matches) {
+                    const item = dropdown.createDiv({ cls: 'ft-autocomplete-item', text: match });
+                    item.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        const ps = input.value.split(',');
+                        ps[ps.length - 1] = (ps.length > 1 ? ' ' : '') + match;
+                        input.value = ps.join(',');
+                        closeDropdown();
+                        input.focus();
+                    });
+                }
+            };
+
+            input.addEventListener('input', refreshDropdown);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && dropdown?.style.display !== 'none') {
+                    e.stopPropagation();
+                    closeDropdown();
+                }
+            });
+        }
+
         let done = false;
-        const save = async () => { if (done) return; done = true; await onSave(input.value.trim()); };
-        input.addEventListener('blur', save);
+        const save = async () => {
+            if (done) return; done = true;
+            closeDropdown();
+            await onSave(input.value.trim());
+        };
+        input.addEventListener('blur', () => setTimeout(save, 150));
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') { e.preventDefault(); save(); }
-            if (e.key === 'Escape') { done = true; onCancel(); }
+            if (e.key === 'Escape' && !dropdown) { done = true; closeDropdown(); onCancel(); }
         });
     }
 
@@ -973,6 +1032,7 @@ class AddPersonModal extends Modal {
         private readonly relPerson: Person | null,
         private readonly personFolder: string,
         private readonly onDone: () => void,
+        private readonly existingPersons: Map<string, Person> = new Map(),
     ) { super(obsApp); }
 
     onOpen() {
@@ -984,6 +1044,21 @@ class AddPersonModal extends Modal {
         };
         contentEl.createEl('h3', { text: titles[this.relation] });
 
+        // ── Unlinked persons from vault ───────────────────────────────────
+        const unlinked = this.getUnlinkedPersons();
+        if (unlinked.length) {
+            contentEl.createEl('p', { cls: 'ft-modal-label', text: 'Existing persons not yet linked:' });
+            const grid = contentEl.createDiv({ cls: 'ft-suggest-grid' });
+            for (const name of unlinked) {
+                const chip = grid.createEl('button', { cls: 'ft-suggest-chip', text: name });
+                chip.addEventListener('click', async () => {
+                    await this.link(name);
+                });
+            }
+            contentEl.createEl('p', { cls: 'ft-modal-divider', text: '— or create new —' });
+        }
+
+        // ── Create new person ─────────────────────────────────────────────
         contentEl.createEl('label', { text: 'Name', cls: 'ft-modal-label' });
         const nameInput = contentEl.createEl('input', { type: 'text', placeholder: 'Full name' }) as HTMLInputElement;
         nameInput.style.cssText = 'display:block;width:100%;margin-bottom:12px';
@@ -991,6 +1066,16 @@ class AddPersonModal extends Modal {
         contentEl.createEl('label', { text: 'Born (optional)', cls: 'ft-modal-label' });
         const bornInput = contentEl.createEl('input', { type: 'text', placeholder: 'e.g. 01.01.1970' }) as HTMLInputElement;
         bornInput.style.cssText = 'display:block;width:100%;margin-bottom:16px';
+
+        // Live-filter unlinked list while typing
+        if (unlinked.length) {
+            nameInput.addEventListener('input', () => {
+                const q = nameInput.value.trim().toLowerCase();
+                grid.querySelectorAll<HTMLElement>('.ft-suggest-chip').forEach(chip => {
+                    chip.style.display = (!q || chip.textContent!.toLowerCase().includes(q)) ? '' : 'none';
+                });
+            });
+        }
 
         const btn = contentEl.createEl('button', { text: 'Create', cls: 'ft-modal-btn mod-cta' });
         btn.addEventListener('click', async () => {
@@ -1000,6 +1085,38 @@ class AddPersonModal extends Modal {
         });
         nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') btn.click(); });
         nameInput.focus();
+    }
+
+    private getUnlinkedPersons(): string[] {
+        const alreadyLinked = new Set<string>();
+        if (this.relPerson) {
+            if (this.relation === 'child') this.relPerson.children.forEach(n => alreadyLinked.add(n));
+            if (this.relation === 'parent') this.relPerson.parents.forEach(n => alreadyLinked.add(n));
+        }
+        return [...this.existingPersons.keys()]
+            .filter(n => n !== this.relPerson?.name && !alreadyLinked.has(n))
+            .sort();
+    }
+
+    private async link(name: string) {
+        if (this.relPerson) {
+            await this.obsApp.fileManager.processFrontMatter(this.relPerson.file, (fm) => {
+                const key = this.relation === 'child' ? 'children' : 'parents';
+                const existing = toArray(fm[key]);
+                if (!existing.includes(name)) fm[key] = [...existing, name];
+            });
+            // Also update the other side
+            const other = this.existingPersons.get(name);
+            if (other) {
+                await this.obsApp.fileManager.processFrontMatter(other.file, (fm) => {
+                    const key = this.relation === 'child' ? 'parents' : 'children';
+                    const existing = toArray(fm[key]);
+                    if (!existing.includes(this.relPerson!.name)) fm[key] = [...existing, this.relPerson!.name];
+                });
+            }
+        }
+        this.close();
+        this.onDone();
     }
 
     private async create(name: string, born: string) {

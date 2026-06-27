@@ -677,6 +677,66 @@
 
 .ft-list-btn-danger:hover { opacity: 1 !important; }
 
+/* ── Autocomplete dropdown ──────────────────────────────────────────────── */
+
+.ft-autocomplete {
+    position: fixed;
+    z-index: 9999;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    max-height: 220px;
+    overflow-y: auto;
+    display: none;
+}
+
+.ft-autocomplete-item {
+    padding: 6px 12px;
+    font-size: 0.84em;
+    color: var(--text-normal);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.ft-autocomplete-item:hover {
+    background: var(--background-modifier-hover);
+    color: var(--color-accent);
+}
+
+/* ── Unlinked person suggestions (AddPersonModal) ───────────────────────── */
+
+.ft-suggest-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.ft-suggest-chip {
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: 0.82em;
+    cursor: pointer;
+    transition: border-color 0.1s, background 0.1s;
+}
+
+.ft-suggest-chip:hover {
+    border-color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 10%, var(--background-secondary));
+    color: var(--color-accent);
+}
+
+.ft-modal-divider {
+    font-size: 0.75em;
+    color: var(--text-faint);
+    text-align: center;
+    margin: 8px 0 12px;
+}
+
 /* ── Modal footer ───────────────────────────────────────────────────────── */
 
 .ft-modal-footer {
