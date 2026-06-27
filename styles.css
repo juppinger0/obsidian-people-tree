@@ -140,6 +140,7 @@
 
 .ft-node {
     position: absolute;
+    width: 220px;
     background: var(--background-secondary);
     border: 2px solid var(--background-modifier-border);
     border-radius: 10px;
@@ -270,7 +271,7 @@
 
 /* Node widens when expanded so detail fits */
 .ft-node.expanded {
-    width: 260px !important;
+    width: 260px;
     z-index: 10;
 }
 
@@ -410,13 +411,13 @@
     transition: stroke-width 0.15s, opacity 0.15s;
 }
 
-.ft-line.ft-line-active {
-    stroke-width: 3 !important;
-    opacity: 1 !important;
+.ft-canvas .ft-line.ft-line-active {
+    stroke-width: 3;
+    opacity: 1;
 }
 
-.ft-line.ft-line-dim {
-    opacity: 0.1 !important;
+.ft-canvas .ft-line.ft-line-dim {
+    opacity: 0.1;
 }
 
 /* ── List mode ─────────────────────────────────────────────────────────── */
@@ -456,7 +457,10 @@
 
 .ft-list-avatar-cell {
     width: 40px;
-    padding: 4px 6px !important;
+}
+
+.ft-table td.ft-list-avatar-cell {
+    padding: 4px 6px;
 }
 
 .ft-list-name {
@@ -719,13 +723,13 @@
 
 /* ── Delete button in list mode ─────────────────────────────────────────── */
 
-.ft-list-btn-danger {
-    color: var(--text-error) !important;
-    border-color: var(--text-error) !important;
+.ft-list-btn.ft-list-btn-danger {
+    color: var(--text-error);
+    border-color: var(--text-error);
     opacity: 0.5;
 }
 
-.ft-list-btn-danger:hover { opacity: 1 !important; }
+.ft-list-btn.ft-list-btn-danger:hover { opacity: 1; }
 
 /* ── File Explorer person icon ──────────────────────────────────────────── */
 
@@ -842,3 +846,11 @@
     opacity: 0.75;
     pointer-events: none;
 }
+
+/* ── Utility classes (replaces inline styles) ───────────────────────────── */
+
+.ft-hidden { display: none; }
+.ft-modal-btn-spaced { margin-left: 8px; }
+.ft-modal-block-btn { display: block; margin-bottom: 12px; }
+.ft-modal-text-input { display: block; width: 100%; margin-bottom: 12px; }
+.ft-modal-text-input-last { display: block; width: 100%; margin-bottom: 16px; }

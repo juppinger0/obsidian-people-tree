@@ -1,6 +1,6 @@
 # People Tree — Obsidian Plugin
 
-> **Requirements:** Obsidian **1.4.0** or later · Desktop and Mobile · No external dependencies
+> **Requirements:** Obsidian **1.7.0** or later · Desktop and Mobile · No external dependencies
 
 An interactive family tree, org chart and timeline viewer for [Obsidian](https://obsidian.md). All data lives in your vault as plain Markdown notes with YAML frontmatter — no external services, no proprietary formats, no telemetry.
 
@@ -25,22 +25,15 @@ An interactive family tree, org chart and timeline viewer for [Obsidian](https:/
 
 ## Installation
 
-### Option 1 — Let an AI assistant do it for you *(recommended)*
-
-Just ask Claude, Claude Code, or any AI with file-system access:
-
-> *"Install the People Tree plugin into my Obsidian vault at `<path to your vault>`."*
-
-The assistant will copy `main.js`, `manifest.json` and `styles.css` into `.obsidian/plugins/people-tree/` and enable the plugin automatically. No manual steps needed.
-
-### Option 2 — Community Plugin Store *(coming soon)*
+### Option 1 — Community Plugin Store
 Search for **"People Tree"** in Obsidian → Settings → Community plugins.
 
-### Option 3 — Manual
+### Option 2 — Manual
+
 1. Download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/juppinger0/obsidian-people-tree/releases).
 2. Copy all three files into your vault under `.obsidian/plugins/people-tree/`.
 3. In Obsidian: **Settings → Community plugins → enable "People Tree"**.
-4. Click the 👥 icon in the left ribbon, or run **"Open People Tree"** from the command palette.
+4. Click the 👥 icon in the left ribbon, or run **"Open"** from the command palette.
 
 > **Safe to install on existing vaults.** The plugin never overwrites or deletes existing notes. It only reads notes with `type: person` in their frontmatter and writes to notes you explicitly interact with.
 
@@ -193,7 +186,7 @@ The uploaded photo is saved to the configured *Photos folder* and the `avatar` p
 
 | | |
 |---|---|
-| Obsidian | **1.4.0** or later |
+| Obsidian | **1.7.0** or later |
 | Platform | Desktop (Windows, macOS, Linux) and Mobile (iOS, Android) |
 | Dependencies | None — fully self-contained |
 

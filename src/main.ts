@@ -1,4 +1,4 @@
-import { Plugin, PluginSettingTab, App, Setting } from 'obsidian';
+import { Plugin, PluginSettingTab, App, Setting, activeDocument } from 'obsidian';
 import { FamilyTreeView, VIEW_TYPE_FAMILY_TREE } from './FamilyTreeView';
 
 export interface PeopleTreeSettings {
@@ -18,8 +18,8 @@ export class PeopleTreePlugin extends Plugin {
     async onload() {
         await this.loadSettings();
         this.registerView(VIEW_TYPE_FAMILY_TREE, (leaf) => new FamilyTreeView(leaf, this.app, this.settings, this));
-        this.addRibbonIcon('users', 'Open People Tree', () => this.activateView());
-        this.addCommand({ id: 'open-people-tree', name: 'Open People Tree', callback: () => this.activateView() });
+        this.addRibbonIcon('users', 'Open People Tree', () => { void this.activateView(); });
+        this.addCommand({ id: 'open', name: 'Open', callback: () => { void this.activateView(); } });
         this.addSettingTab(new PeopleTreeSettingTab(this.app, this));
 
         this.app.workspace.onLayoutReady(() => this.updateFileIcons());
@@ -30,8 +30,7 @@ export class PeopleTreePlugin extends Plugin {
     }
 
     onunload() {
-        this.app.workspace.detachLeavesOfType(VIEW_TYPE_FAMILY_TREE);
-        document.querySelectorAll('.pt-file-icon').forEach(el => el.remove());
+        activeDocument.querySelectorAll('.pt-file-icon').forEach(el => el.remove());
     }
 
     updateFileIcons() {
@@ -101,7 +100,7 @@ export class PeopleTreePlugin extends Plugin {
         this.app.workspace.detachLeavesOfType(VIEW_TYPE_FAMILY_TREE);
         const leaf = this.app.workspace.getLeaf('tab');
         await leaf.setViewState({ type: VIEW_TYPE_FAMILY_TREE, active: true });
-        this.app.workspace.revealLeaf(leaf);
+        await this.app.workspace.revealLeaf(leaf);
     }
 }
 
@@ -113,7 +112,7 @@ class PeopleTreeSettingTab extends PluginSettingTab {
     display() {
         const { containerEl } = this;
         containerEl.empty();
-        containerEl.createEl('h2', { text: 'People Tree Settings' });
+        new Setting(containerEl).setName('People Tree').setHeading();
 
         new Setting(containerEl)
             .setName('Photos folder')

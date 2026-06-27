@@ -2,8 +2,8 @@
   "id": "people-tree",
   "name": "People Tree",
   "version": "1.0.0",
-  "minAppVersion": "1.4.0",
-  "description": "Interactive family trees, org charts and timelines from YAML frontmatter — with avatars, inline editing and multiple view modes",
+  "minAppVersion": "1.7.0",
+  "description": "Interactive family trees, org charts and timelines from YAML frontmatter — with avatars, inline editing and multiple view modes.",
   "author": "Jörg Lortz",
   "authorUrl": "https://github.com/juppinger0",
   "isDesktopOnly": false

@@ -1,4 +1,4 @@
-import { App, ItemView, Modal, TFile, WorkspaceLeaf } from 'obsidian';
+import { App, ItemView, Modal, TFile, WorkspaceLeaf, activeDocument } from 'obsidian';
 import type { PeopleTreePlugin, PeopleTreeSettings } from './main';
 
 export const VIEW_TYPE_FAMILY_TREE = 'people-tree-view';
@@ -52,7 +52,7 @@ export class FamilyTreeView extends ItemView {
     async onOpen() {
         this.containerEl.children[1].addClass('family-tree-root');
         await this.render();
-        this.registerEvent(this.app.metadataCache.on('changed', () => this.render()));
+        this.registerEvent(this.app.metadataCache.on('changed', () => { void this.render(); }));
     }
     async onClose() {}
 
@@ -65,7 +65,8 @@ export class FamilyTreeView extends ItemView {
             if (folder && !file.path.startsWith(folder)) continue;
             const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
             if (!fm || fm.type !== 'person' || fm.hidden) continue;
-            const { type: _t, hidden: _h, name: fmName, born, died, avatar, parents, spouse, children, position: _p, ...extra } = fm;
+            const { type, hidden, name: fmName, born, died, avatar, parents, spouse, children, position, ...extra } = fm;
+            void type; void hidden; void position;
             const name = (fmName as string) || file.basename;
             this.persons.set(name, {
                 id: name, name,
@@ -143,7 +144,7 @@ export class FamilyTreeView extends ItemView {
     // ── Render dispatch ───────────────────────────────────────────────────
 
     async render() {
-        document.querySelectorAll('.ft-autocomplete').forEach(el => el.remove());
+        activeDocument.querySelectorAll('.ft-autocomplete').forEach(el => el.remove());
         await this.loadPersons();
         this.assignGenerations();
         this.assignColumns();
@@ -262,9 +263,9 @@ export class FamilyTreeView extends ItemView {
 
         const btnRow = card.createDiv({ cls: 'ft-onboarding-btn-row' });
         const btn = btnRow.createEl('button', { cls: 'ft-onboarding-btn', text: '+ Create first person' });
-        btn.addEventListener('click', () => this.createPersonNote());
+        btn.addEventListener('click', () => { void this.createPersonNote(); });
         const demoBtn = btnRow.createEl('button', { cls: 'ft-onboarding-btn ft-onboarding-btn--demo', text: '🎭 Create sample family' });
-        demoBtn.addEventListener('click', () => this.createDemoContacts());
+        demoBtn.addEventListener('click', () => { void this.createDemoContacts(); });
     }
 
     private async createPersonNote() {
@@ -297,7 +298,7 @@ export class FamilyTreeView extends ItemView {
         this.viewMode = 'tree';
         this.expandedPersons.add(base);
         await this.render();
-        setTimeout(() => {
+        window.setTimeout(() => {
             const nameEl = this.getCanvas()?.querySelector<HTMLElement>(`[data-person="${base}"] .ft-name`);
             nameEl?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
         }, 60);
@@ -364,12 +365,12 @@ export class FamilyTreeView extends ItemView {
             b.createSpan({ text: m.emoji });
             b.createEl('span', { text: ` ${m.label}` });
             if (this.viewMode === m.id) b.addClass('active');
-            b.addEventListener('click', () => { this.viewMode = m.id; this.zoom = 1; this.panX = 0; this.panY = 0; this.render(); });
+            b.addEventListener('click', () => { this.viewMode = m.id; this.zoom = 1; this.panX = 0; this.panY = 0; void this.render(); });
         }
 
-        const newPersonBtn = tb.createEl('button', { cls: 'ft-new-person-btn', title: 'Neue Person anlegen' });
+        const newPersonBtn = tb.createEl('button', { cls: 'ft-new-person-btn', title: 'Add person' });
         newPersonBtn.createSpan({ text: '+ Person' });
-        newPersonBtn.addEventListener('click', () => new AddPersonModal(this.app, 'none', null, this.settings.personFolder, () => this.render(), this.persons).open());
+        newPersonBtn.addEventListener('click', () => new AddPersonModal(this.app, 'none', null, this.settings.personFolder, () => { void this.render(); }, this.persons).open());
 
         if (this.viewMode !== 'list') {
             const zoomGroup = tb.createDiv({ cls: 'ft-zoom-group' });
@@ -381,9 +382,9 @@ export class FamilyTreeView extends ItemView {
             z('−', 'Zoom out', () => { this.zoom = Math.max(this.zoom / 1.2, 0.15); this.applyTransform(this.getCanvas()); });
             z('⌂', 'Reset view', () => { this.zoom = 1; this.panX = 0; this.panY = 0; this.applyTransform(this.getCanvas()); });
 
-            const exportBtn = tb.createEl('button', { cls: 'ft-export-btn', title: 'Als PNG herunterladen' });
+            const exportBtn = tb.createEl('button', { cls: 'ft-export-btn', title: 'Export as PNG' });
             exportBtn.createSpan({ text: '⬇ PNG' });
-            exportBtn.addEventListener('click', () => this.exportPng());
+            exportBtn.addEventListener('click', () => { void this.exportPng(); });
 
             if (this.viewMode === 'tree' || this.viewMode === 'orgchart') {
                 const resetBtn = tb.createEl('button', { cls: 'ft-tb-btn', title: 'Reset manual positions — return to auto layout', text: '↺' });
@@ -397,7 +398,7 @@ export class FamilyTreeView extends ItemView {
                 });
                 dirBtn.addEventListener('click', () => {
                     this.timelineDir = this.timelineDir === 'h' ? 'v' : 'h';
-                    this.render();
+                    void this.render();
                 });
             }
         }
@@ -662,7 +663,7 @@ export class FamilyTreeView extends ItemView {
 
     private drawYearAxis(svg: SVGElement, minYear: number, maxYear: number, totalW: number, totalH: number) {
         // Axis line
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        const line = activeDocument.createElementNS('http://www.w3.org/2000/svg', 'line');
         line.setAttribute('x1', '40'); line.setAttribute('x2', String(totalW - 20));
         line.setAttribute('y1', String(totalH - 30)); line.setAttribute('y2', String(totalH - 30));
         line.setAttribute('stroke', 'var(--background-modifier-border)'); line.setAttribute('stroke-width', '1');
@@ -672,19 +673,19 @@ export class FamilyTreeView extends ItemView {
         const startDecade = Math.ceil(minYear / 10) * 10;
         for (let yr = startDecade; yr <= maxYear; yr += 10) {
             const x = 60 + (yr - minYear) * TL_PX_PER_YEAR;
-            const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            const tick = activeDocument.createElementNS('http://www.w3.org/2000/svg', 'line');
             tick.setAttribute('x1', String(x)); tick.setAttribute('x2', String(x));
             tick.setAttribute('y1', String(totalH - 36)); tick.setAttribute('y2', String(totalH - 24));
             tick.setAttribute('stroke', 'var(--text-faint)'); tick.setAttribute('stroke-width', '1');
             svg.appendChild(tick);
-            const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            const label = activeDocument.createElementNS('http://www.w3.org/2000/svg', 'text');
             label.setAttribute('x', String(x)); label.setAttribute('y', String(totalH - 10));
             label.setAttribute('text-anchor', 'middle'); label.setAttribute('font-size', '11');
             label.setAttribute('fill', 'var(--text-faint)');
             label.textContent = String(yr);
             svg.appendChild(label);
             // Vertical grid line
-            const grid = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            const grid = activeDocument.createElementNS('http://www.w3.org/2000/svg', 'line');
             grid.setAttribute('x1', String(x)); grid.setAttribute('x2', String(x));
             grid.setAttribute('y1', '0'); grid.setAttribute('y2', String(totalH - 36));
             grid.setAttribute('stroke', 'var(--background-modifier-border)'); grid.setAttribute('stroke-width', '1');
@@ -698,7 +699,7 @@ export class FamilyTreeView extends ItemView {
         const yStart = 60;
         const yEnd = 60 + (maxYear - minYear) * TL_PX_PER_YEAR;
         // Axis line
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        const line = activeDocument.createElementNS('http://www.w3.org/2000/svg', 'line');
         line.setAttribute('x1', String(axisX)); line.setAttribute('x2', String(axisX));
         line.setAttribute('y1', String(yStart)); line.setAttribute('y2', String(yEnd));
         line.setAttribute('stroke', 'var(--background-modifier-border)'); line.setAttribute('stroke-width', '1');
@@ -707,19 +708,19 @@ export class FamilyTreeView extends ItemView {
         const startDecade = Math.ceil(minYear / 10) * 10;
         for (let yr = startDecade; yr <= maxYear; yr += 10) {
             const y = 60 + (yr - minYear) * TL_PX_PER_YEAR;
-            const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            const tick = activeDocument.createElementNS('http://www.w3.org/2000/svg', 'line');
             tick.setAttribute('x1', String(axisX - 6)); tick.setAttribute('x2', String(axisX + 6));
             tick.setAttribute('y1', String(y)); tick.setAttribute('y2', String(y));
             tick.setAttribute('stroke', 'var(--text-faint)'); tick.setAttribute('stroke-width', '1');
             svg.appendChild(tick);
-            const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            const label = activeDocument.createElementNS('http://www.w3.org/2000/svg', 'text');
             label.setAttribute('x', String(axisX - 8)); label.setAttribute('y', String(y + 4));
             label.setAttribute('text-anchor', 'end'); label.setAttribute('font-size', '11');
             label.setAttribute('fill', 'var(--text-faint)');
             label.textContent = String(yr);
             svg.appendChild(label);
             // Horizontal grid line
-            const grid = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            const grid = activeDocument.createElementNS('http://www.w3.org/2000/svg', 'line');
             grid.setAttribute('x1', String(axisX + 6)); grid.setAttribute('x2', String(totalW - 10));
             grid.setAttribute('y1', String(y)); grid.setAttribute('y2', String(y));
             grid.setAttribute('stroke', 'var(--background-modifier-border)'); grid.setAttribute('stroke-width', '1');
@@ -756,7 +757,7 @@ export class FamilyTreeView extends ItemView {
                 th.addEventListener('click', () => {
                     if (this.sortField === col.field) this.sortDir = this.sortDir === 1 ? -1 : 1;
                     else { this.sortField = col.field!; this.sortDir = 1; }
-                    this.render();
+                    void this.render();
                 });
             }
         }
@@ -805,13 +806,13 @@ export class FamilyTreeView extends ItemView {
             // Actions
             const actCell = row.createEl('td', { cls: 'ft-list-actions' });
             actCell.createEl('button', { text: '↗', cls: 'ft-list-btn', title: 'Open note' })
-                .addEventListener('click', () => this.app.workspace.openLinkText(person.file.path, ''));
+                .addEventListener('click', () => { void this.app.workspace.openLinkText(person.file.path, ''); });
             actCell.createEl('button', { text: '📷', cls: 'ft-list-btn', title: 'Upload / change photo' })
-                .addEventListener('click', () => new AvatarUploadModal(this.app, person, this.settings.photosFolder, () => this.render()).open());
+                .addEventListener('click', () => new AvatarUploadModal(this.app, person, this.settings.photosFolder, () => { void this.render(); }).open());
             actCell.createEl('button', { text: '⊖', cls: 'ft-list-btn', title: 'Remove from tree (note stays)' })
-                .addEventListener('click', () => this.removeFromTree(person));
+                .addEventListener('click', () => { void this.removeFromTree(person); });
             actCell.createEl('button', { text: '🗑', cls: 'ft-list-btn ft-list-btn-danger', title: 'Delete note permanently' })
-                .addEventListener('click', () => this.deletePerson(person));
+                .addEventListener('click', () => { void this.deletePerson(person); });
 
             // Inline editing on cell click
             for (const [i, field] of ['born', 'died', 'parents', 'spouse', 'children'].entries()) {
@@ -838,9 +839,7 @@ export class FamilyTreeView extends ItemView {
 
     private renderNode(parent: HTMLElement, person: Person, x: number, y: number) {
         const node = parent.createDiv({ cls: 'ft-node' });
-        node.style.left = x + 'px';
-        node.style.top = y + 'px';
-        node.style.width = NODE_W + 'px';
+        node.setCssStyles({ left: x + 'px', top: y + 'px' });
         node.dataset.person = person.name;
         if (this.expandedPersons.has(person.name)) node.addClass('expanded');
 
@@ -858,14 +857,14 @@ export class FamilyTreeView extends ItemView {
 
         const btns = header.createDiv({ cls: 'ft-node-btns' });
         const openBtn = btns.createEl('button', { cls: 'ft-icon-btn', title: 'Open note', text: '↗' });
-        openBtn.addEventListener('click', (e) => { e.stopPropagation(); this.app.workspace.openLinkText(person.file.path, ''); });
+        openBtn.addEventListener('click', (e) => { e.stopPropagation(); void this.app.workspace.openLinkText(person.file.path, ''); });
         const isExp = this.expandedPersons.has(person.name);
         const expandBtn = btns.createEl('button', { cls: 'ft-icon-btn', title: 'Details', text: isExp ? '▲' : '▼' });
         expandBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             if (this.expandedPersons.has(person.name)) this.expandedPersons.delete(person.name);
             else this.expandedPersons.add(person.name);
-            this.render();
+            void this.render();
         });
 
         const detail = node.createDiv({ cls: 'ft-detail' });
@@ -880,7 +879,7 @@ export class FamilyTreeView extends ItemView {
         avatarVal.title = 'Click to edit (vault path)';
         avatarVal.addEventListener('click', (e) => { e.stopPropagation(); this.inlineEdit(avatarVal, person, 'avatar', person.avatar, false); });
         avatarRow.createEl('button', { cls: 'ft-icon-btn', text: '📷', title: 'Upload photo' })
-            .addEventListener('click', (e) => { e.stopPropagation(); new AvatarUploadModal(this.app, person, this.settings.photosFolder, () => this.render()).open(); });
+            .addEventListener('click', (e) => { e.stopPropagation(); new AvatarUploadModal(this.app, person, this.settings.photosFolder, () => { void this.render(); }).open(); });
 
         for (const [key, val] of Object.entries(person.extra)) {
             const v = Array.isArray(val) ? (val as string[]).join(', ') : String(val ?? '');
@@ -893,9 +892,9 @@ export class FamilyTreeView extends ItemView {
 
         const actionRow = detail.createDiv({ cls: 'ft-person-actions' });
         const removeBtn = actionRow.createEl('button', { cls: 'ft-remove-person-btn', text: '⊖ Remove from tree', title: 'Note stays in vault, only hidden from this view' });
-        removeBtn.addEventListener('click', (e) => { e.stopPropagation(); this.removeFromTree(person); });
+        removeBtn.addEventListener('click', (e) => { e.stopPropagation(); void this.removeFromTree(person); });
         const deleteBtn = actionRow.createEl('button', { cls: 'ft-delete-person-btn', text: '🗑 Delete note', title: 'Permanently delete note from vault' });
-        deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); this.deletePerson(person); });
+        deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); void this.deletePerson(person); });
 
         node.addEventListener('click', (e) => {
             if ((e.target as HTMLElement).closest('button, input')) return;
@@ -907,7 +906,7 @@ export class FamilyTreeView extends ItemView {
     // ── Card drag ─────────────────────────────────────────────────────────
 
     private makeDraggable(cardEl: HTMLElement, handle: HTMLElement, person: Person) {
-        handle.style.cursor = 'grab';
+        handle.setCssStyles({ cursor: 'grab' });
         handle.addEventListener('mousedown', (e: MouseEvent) => {
             if (e.button !== 0) return;
             if ((e.target as HTMLElement).closest('button, a, input')) return;
@@ -919,27 +918,29 @@ export class FamilyTreeView extends ItemView {
             const startLeft = parseFloat(cardEl.style.left) || 0;
             const startTop = parseFloat(cardEl.style.top) || 0;
 
-            handle.style.cursor = 'grabbing';
+            handle.setCssStyles({ cursor: 'grabbing' });
             cardEl.addClass('ft-card-dragging');
 
             const onMove = (me: MouseEvent) => {
-                cardEl.style.left = `${startLeft + (me.clientX - startScreenX) / this.zoom}px`;
-                cardEl.style.top  = `${startTop  + (me.clientY - startScreenY) / this.zoom}px`;
+                cardEl.setCssStyles({
+                    left: `${startLeft + (me.clientX - startScreenX) / this.zoom}px`,
+                    top:  `${startTop  + (me.clientY - startScreenY) / this.zoom}px`,
+                });
             };
 
             const onUp = async () => {
-                handle.style.cursor = 'grab';
+                handle.setCssStyles({ cursor: 'grab' });
                 cardEl.removeClass('ft-card-dragging');
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup', onUp);
+                activeDocument.removeEventListener('mousemove', onMove);
+                activeDocument.removeEventListener('mouseup', onUp);
                 const newX = Math.round(parseFloat(cardEl.style.left));
                 const newY = Math.round(parseFloat(cardEl.style.top));
                 await this.plugin.savePosition(person.file.path, newX, newY);
                 await this.render();
             };
 
-            document.addEventListener('mousemove', onMove);
-            document.addEventListener('mouseup', onUp);
+            activeDocument.addEventListener('mousemove', onMove);
+            activeDocument.addEventListener('mouseup', onUp);
         });
     }
 
@@ -947,9 +948,7 @@ export class FamilyTreeView extends ItemView {
 
     private renderAvatarCircle(parent: HTMLElement, person: Person, size: number) {
         const wrap = parent.createDiv({ cls: 'ft-avatar-wrap' });
-        wrap.style.width = size + 'px';
-        wrap.style.height = size + 'px';
-        wrap.style.minWidth = size + 'px';
+        wrap.setCssStyles({ width: size + 'px', height: size + 'px', minWidth: size + 'px' });
 
         if (person.avatar) {
             const f = this.app.vault.getAbstractFileByPath(person.avatar);
@@ -979,7 +978,7 @@ export class FamilyTreeView extends ItemView {
         val.title = 'Click to edit';
         val.addEventListener('click', (e) => { e.stopPropagation(); this.inlineEdit(val, person, field, value, true); });
         const addBtn = row.createEl('button', { cls: 'ft-icon-btn', text: '+', title: `Add ${label.toLowerCase().replace(/s$/, '')}` });
-        addBtn.addEventListener('click', (e) => { e.stopPropagation(); new AddPersonModal(this.app, relation, person, this.settings.personFolder, () => this.render(), this.persons).open(); });
+        addBtn.addEventListener('click', (e) => { e.stopPropagation(); new AddPersonModal(this.app, relation, person, this.settings.personFolder, () => { void this.render(); }, this.persons).open(); });
     }
 
     private async removeFromTree(person: Person) {
@@ -992,8 +991,7 @@ export class FamilyTreeView extends ItemView {
                     const footer = this.contentEl.createDiv({ cls: 'ft-modal-footer' });
                     footer.createEl('button', { text: 'Cancel', cls: 'ft-modal-btn' })
                         .addEventListener('click', () => { this.close(); resolve(false); });
-                    const btn = footer.createEl('button', { text: 'Remove', cls: 'ft-modal-btn' });
-                    btn.style.marginLeft = '8px';
+                    const btn = footer.createEl('button', { text: 'Remove', cls: 'ft-modal-btn ft-modal-btn-spaced' });
                     btn.addEventListener('click', () => { this.close(); resolve(true); });
                 }
                 onClose() { this.contentEl.empty(); }
@@ -1015,8 +1013,7 @@ export class FamilyTreeView extends ItemView {
                     const footer = this.contentEl.createDiv({ cls: 'ft-modal-footer' });
                     footer.createEl('button', { text: 'Cancel', cls: 'ft-modal-btn' })
                         .addEventListener('click', () => { this.close(); resolve(false); });
-                    const del = footer.createEl('button', { text: 'Delete', cls: 'ft-modal-btn ft-modal-btn-danger' });
-                    del.style.marginLeft = '8px';
+                    const del = footer.createEl('button', { text: 'Delete', cls: 'ft-modal-btn ft-modal-btn-danger ft-modal-btn-spaced' });
                     del.addEventListener('click', () => { this.close(); resolve(true); });
                 }
                 onClose() { this.contentEl.empty(); }
@@ -1024,14 +1021,14 @@ export class FamilyTreeView extends ItemView {
             modal.open();
         });
         if (!confirmed) return;
-        await this.app.vault.delete(person.file);
+        await this.app.fileManager.trashFile(person.file);
         await this.render();
     }
 
     private showAddField(container: HTMLElement, person: Person, trigger: HTMLElement) {
         trigger.remove();
         const row = container.createDiv({ cls: 'ft-new-field-row' });
-        const key = row.createEl('input', { type: 'text', placeholder: 'Feldname', cls: 'ft-new-key' });
+        const key = row.createEl('input', { type: 'text', placeholder: 'Field name', cls: 'ft-new-key' });
         const val = row.createEl('input', { type: 'text', placeholder: 'Wert', cls: 'ft-new-val' });
         const save = row.createEl('button', { text: '✓', cls: 'ft-save-new' });
         key.focus();
@@ -1093,23 +1090,23 @@ export class FamilyTreeView extends ItemView {
         const closeDropdown = () => { dropdown?.remove(); dropdown = null; };
 
         if (suggestions.length) {
-            dropdown = document.body.createDiv({ cls: 'ft-autocomplete' });
+            dropdown = activeDocument.body.createDiv({ cls: 'ft-autocomplete' });
 
             const refreshDropdown = () => {
                 if (!dropdown) return;
                 const parts = input.value.split(',');
                 const token = parts[parts.length - 1].trim().toLowerCase();
                 dropdown.empty();
-                if (!token) { dropdown.style.display = 'none'; return; }
+                if (!token) { dropdown.setCssStyles({ display: 'none' }); return; }
 
                 const matches = suggestions
                     .filter(s => s.toLowerCase().includes(token))
                     .slice(0, 8);
 
-                if (!matches.length) { dropdown.style.display = 'none'; return; }
+                if (!matches.length) { dropdown.setCssStyles({ display: 'none' }); return; }
 
                 const rect = input.getBoundingClientRect();
-                Object.assign(dropdown.style, {
+                dropdown.setCssStyles({
                     display: 'block',
                     top: (rect.bottom + 2) + 'px',
                     left: rect.left + 'px',
@@ -1144,7 +1141,7 @@ export class FamilyTreeView extends ItemView {
             closeDropdown();
             await onSave(input.value.trim());
         };
-        input.addEventListener('blur', () => setTimeout(save, 150));
+        input.addEventListener('blur', () => window.setTimeout(save, 150));
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') { e.preventDefault(); save(); }
             if (e.key === 'Escape' && !dropdown) { done = true; closeDropdown(); onCancel(); }
@@ -1182,14 +1179,14 @@ export class FamilyTreeView extends ItemView {
         viewport.addEventListener('mousedown', (e) => {
             if ((e.target as HTMLElement).closest('.ft-node')) return;
             panning = true; sx = e.clientX - this.panX; sy = e.clientY - this.panY;
-            viewport.style.cursor = 'grabbing';
+            viewport.setCssStyles({ cursor: 'grabbing' });
         });
         viewport.addEventListener('mousemove', (e) => {
             if (!panning) return;
             this.panX = e.clientX - sx; this.panY = e.clientY - sy;
             this.applyTransform(canvas);
         });
-        const stop = () => { panning = false; viewport.style.cursor = 'grab'; };
+        const stop = () => { panning = false; viewport.setCssStyles({ cursor: 'grab' }); };
         viewport.addEventListener('mouseup', stop);
         viewport.addEventListener('mouseleave', stop);
         viewport.addEventListener('click', (e) => {
@@ -1215,7 +1212,7 @@ export class FamilyTreeView extends ItemView {
     // ── SVG helpers ───────────────────────────────────────────────────────
 
     private createSvg(parent: HTMLElement, w: number, h: number): SVGElement {
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        const svg = activeDocument.createElementNS('http://www.w3.org/2000/svg', 'svg');
         svg.setAttribute('width', String(w)); svg.setAttribute('height', String(h));
         svg.classList.add('ft-svg');
         parent.appendChild(svg);
@@ -1227,7 +1224,7 @@ export class FamilyTreeView extends ItemView {
     }
 
     private drawConnector(svg: SVGElement, x1: number, y1: number, x2: number, y2: number, a: string, b: string, type: 'parent' | 'spouse') {
-        const el = document.createElementNS('http://www.w3.org/2000/svg', type === 'spouse' ? 'line' : 'path') as SVGElement;
+        const el = activeDocument.createElementNS('http://www.w3.org/2000/svg', type === 'spouse' ? 'line' : 'path') as SVGElement;
         el.classList.add('ft-line', `ft-line-${type}`);
         el.dataset.a = a; el.dataset.b = b;
 
@@ -1246,7 +1243,7 @@ export class FamilyTreeView extends ItemView {
 
     private drawSpouseMarker(svg: SVGElement, mx: number, my: number) {
         const d = 5;
-        const diamond = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        const diamond = activeDocument.createElementNS('http://www.w3.org/2000/svg', 'polygon');
         diamond.setAttribute('points', `${mx},${my - d} ${mx + d},${my} ${mx},${my + d} ${mx - d},${my}`);
         diamond.classList.add('ft-spouse-marker');
         svg.appendChild(diamond);
@@ -1257,7 +1254,7 @@ export class FamilyTreeView extends ItemView {
     private async exportPng() {
         if (this.persons.size === 0 || this.layoutW === 0 || this.viewMode === 'list') return;
         const scale = 2;
-        const canvas = document.createElement('canvas');
+        const canvas = activeDocument.createElement('canvas');
         canvas.width = this.layoutW * scale;
         canvas.height = this.layoutH * scale;
         const ctx = canvas.getContext('2d')!;
@@ -1324,11 +1321,11 @@ export class FamilyTreeView extends ItemView {
         canvas.toBlob(blob => {
             if (!blob) return;
             const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
+            const a = activeDocument.createElement('a');
             a.href = url;
             a.download = `people-tree-${new Date().toISOString().slice(0, 10)}.png`;
-            document.body.appendChild(a); a.click();
-            document.body.removeChild(a); URL.revokeObjectURL(url);
+            activeDocument.body.appendChild(a); a.click();
+            activeDocument.body.removeChild(a); URL.revokeObjectURL(url);
         }, 'image/png');
     }
 
@@ -1381,15 +1378,14 @@ class AvatarUploadModal extends Modal {
         contentEl.createEl('p', { text: 'Or pick a file:', cls: 'ft-modal-label' });
         const fileInput = contentEl.createEl('input', { type: 'file' }) as HTMLInputElement;
         fileInput.accept = 'image/*';
-        fileInput.style.display = 'none';
+        fileInput.addClass('ft-hidden');
         fileInput.addEventListener('change', async () => {
             const file = fileInput.files?.[0];
             if (!file) return;
             await this.saveFile(await file.arrayBuffer(), file.name);
         });
 
-        const pickBtn = contentEl.createEl('button', { text: '📁 Pick image file…', cls: 'ft-modal-btn' });
-        pickBtn.style.cssText = 'display:block;margin-bottom:12px';
+        const pickBtn = contentEl.createEl('button', { text: '📁 Pick image file…', cls: 'ft-modal-btn ft-modal-block-btn' });
         pickBtn.addEventListener('click', async () => {
             if (typeof (window as any).showOpenFilePicker === 'function') {
                 try {
@@ -1409,8 +1405,7 @@ class AvatarUploadModal extends Modal {
 
         // ── Option C: vault path ────────────────────────────────────────
         contentEl.createEl('p', { text: 'Or paste a vault-relative path (file already in vault):', cls: 'ft-modal-label' });
-        const pathInput = contentEl.createEl('input', { type: 'text', placeholder: `${this.photosFolder}/name.jpg` }) as HTMLInputElement;
-        pathInput.style.cssText = 'display:block;width:100%;margin-bottom:6px';
+        const pathInput = contentEl.createEl('input', { type: 'text', placeholder: `${this.photosFolder}/name.jpg`, cls: 'ft-modal-text-input' }) as HTMLInputElement;
         pathInput.value = this.person.avatar ?? '';
         const savePathBtn = contentEl.createEl('button', { text: 'Save path', cls: 'ft-modal-btn' });
         savePathBtn.addEventListener('click', async () => {
@@ -1497,12 +1492,10 @@ class AddPersonModal extends Modal {
 
         // ── Create new person ─────────────────────────────────────────────
         contentEl.createEl('label', { text: 'Name', cls: 'ft-modal-label' });
-        const nameInput = contentEl.createEl('input', { type: 'text', placeholder: 'Full name' }) as HTMLInputElement;
-        nameInput.style.cssText = 'display:block;width:100%;margin-bottom:12px';
+        const nameInput = contentEl.createEl('input', { type: 'text', placeholder: 'Full name', cls: 'ft-modal-text-input' }) as HTMLInputElement;
 
         contentEl.createEl('label', { text: 'Born (optional)', cls: 'ft-modal-label' });
-        const bornInput = contentEl.createEl('input', { type: 'text', placeholder: 'e.g. 01.01.1970' }) as HTMLInputElement;
-        bornInput.style.cssText = 'display:block;width:100%;margin-bottom:16px';
+        const bornInput = contentEl.createEl('input', { type: 'text', placeholder: 'e.g. 01.01.1970', cls: 'ft-modal-text-input-last' }) as HTMLInputElement;
 
         // Live-filter unlinked list while typing
         if (unlinked.length) {
