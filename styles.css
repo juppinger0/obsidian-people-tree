@@ -714,6 +714,9 @@
     line-height: 1;
     flex-shrink: 0;
 }
+.pt-file-icon--hidden {
+    opacity: 0.3;
+}
 
 /* ── Autocomplete dropdown ──────────────────────────────────────────────── */
 

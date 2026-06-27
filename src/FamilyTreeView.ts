@@ -63,8 +63,8 @@ export class FamilyTreeView extends ItemView {
         for (const file of this.app.vault.getMarkdownFiles()) {
             if (folder && !file.path.startsWith(folder)) continue;
             const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
-            if (!fm || fm.type !== 'person') continue;
-            const { type: _t, name: fmName, born, died, avatar, parents, spouse, children, position: _p, ...extra } = fm;
+            if (!fm || fm.type !== 'person' || fm.hidden) continue;
+            const { type: _t, hidden: _h, name: fmName, born, died, avatar, parents, spouse, children, position: _p, ...extra } = fm;
             const name = (fmName as string) || file.basename;
             this.persons.set(name, {
                 id: name, name,
@@ -646,7 +646,7 @@ export class FamilyTreeView extends ItemView {
     }
 
     private async removeFromTree(person: Person) {
-        await this.app.fileManager.processFrontMatter(person.file, (fm) => { delete fm.type; });
+        await this.app.fileManager.processFrontMatter(person.file, (fm) => { fm['hidden'] = true; });
         await this.render();
     }
 
@@ -656,7 +656,7 @@ export class FamilyTreeView extends ItemView {
                 onOpen() {
                     this.contentEl.createEl('h3', { text: 'Notiz dauerhaft löschen?' });
                     this.contentEl.createEl('p', { text: `Die Notiz "${person.name}" wird unwiderruflich aus dem Vault gelöscht. Verweise in anderen Notizen werden nicht bereinigt.` });
-                    this.contentEl.createEl('p', { cls: 'ft-modal-hint', text: '💡 Tipp: "Aus Baum entfernen" behält die Notiz und entfernt nur type: person.' });
+                    this.contentEl.createEl('p', { cls: 'ft-modal-hint', text: '💡 Tipp: "Aus Baum entfernen" behält die Notiz — du kannst sie über "+ Person" wieder einblenden.' });
                     const footer = this.contentEl.createDiv({ cls: 'ft-modal-footer' });
                     footer.createEl('button', { text: 'Abbrechen', cls: 'ft-modal-btn' })
                         .addEventListener('click', () => { this.close(); resolve(false); });
@@ -712,6 +712,13 @@ export class FamilyTreeView extends ItemView {
             await this.app.fileManager.processFrontMatter(person.file, (fm) => {
                 fm[field] = isArray ? v.split(',').map((s: string) => s.trim()).filter(Boolean) : (v || null);
             });
+            if (field === 'name' && v && v !== person.file.basename) {
+                try {
+                    const parentPath = person.file.parent?.path ?? '';
+                    const newPath = parentPath ? `${parentPath}/${v}.md` : `${v}.md`;
+                    await this.app.fileManager.renameFile(person.file, newPath);
+                } catch { /* ignore rename errors — note is already saved */ }
+            }
         }, () => { el.textContent = raw || '—'; }, suggestions);
     }
 
@@ -1101,12 +1108,19 @@ class AddPersonModal extends Modal {
         // ── Unlinked persons from vault ───────────────────────────────────
         const unlinked = this.getUnlinkedPersons();
         if (unlinked.length) {
-            contentEl.createEl('p', { cls: 'ft-modal-label', text: 'Existing persons not yet linked:' });
+            const label = this.relation === 'none'
+                ? 'Persons removed from board — click to re-add:'
+                : 'Existing persons not yet linked:';
+            contentEl.createEl('p', { cls: 'ft-modal-label', text: label });
             const grid = contentEl.createDiv({ cls: 'ft-suggest-grid' });
             for (const name of unlinked) {
                 const chip = grid.createEl('button', { cls: 'ft-suggest-chip', text: name });
                 chip.addEventListener('click', async () => {
-                    await this.link(name);
+                    if (this.relation === 'none') {
+                        await this.restore(name);
+                    } else {
+                        await this.link(name);
+                    }
                 });
             }
             contentEl.createEl('p', { cls: 'ft-modal-divider', text: '— or create new —' });
@@ -1142,12 +1156,20 @@ class AddPersonModal extends Modal {
     }
 
     private getUnlinkedPersons(): string[] {
-        if (this.relation === 'none' || !this.relPerson) return [];
+        const result: string[] = [];
+        if (this.relation === 'none') {
+            // Show persons that were removed from the board (hidden: true)
+            for (const file of this.obsApp.vault.getMarkdownFiles()) {
+                const fm = this.obsApp.metadataCache.getFileCache(file)?.frontmatter;
+                if (!fm || fm.type !== 'person' || !fm.hidden) continue;
+                result.push((fm.name as string) || file.basename);
+            }
+            return result.sort();
+        }
+        if (!this.relPerson) return [];
         const exclude = new Set<string>([this.relPerson.name]);
         if (this.relation === 'child') this.relPerson.children.forEach(n => exclude.add(n));
         if (this.relation === 'parent') this.relPerson.parents.forEach(n => exclude.add(n));
-        // Only persons that exist in vault but are NOT on the board yet
-        const result: string[] = [];
         for (const file of this.obsApp.vault.getMarkdownFiles()) {
             const fm = this.obsApp.metadataCache.getFileCache(file)?.frontmatter;
             if (!fm || fm.type !== 'person') continue;
@@ -1157,6 +1179,20 @@ class AddPersonModal extends Modal {
         return result.sort();
     }
 
+    private async restore(name: string) {
+        for (const file of this.obsApp.vault.getMarkdownFiles()) {
+            const fm = this.obsApp.metadataCache.getFileCache(file)?.frontmatter;
+            if (!fm || fm.type !== 'person') continue;
+            const n = (fm.name as string) || file.basename;
+            if (n === name) {
+                await this.obsApp.fileManager.processFrontMatter(file, (f) => { delete f['hidden']; });
+                break;
+            }
+        }
+        this.close();
+        this.onDone();
+    }
+
     private async link(name: string) {
         if (this.relPerson) {
             await this.obsApp.fileManager.processFrontMatter(this.relPerson.file, (fm) => {
@@ -1164,7 +1200,7 @@ class AddPersonModal extends Modal {
                 const existing = toArray(fm[key]);
                 if (!existing.includes(name)) fm[key] = [...existing, name];
             });
-            // Also update the other side
+            // Update the other side — also un-hide if the person was removed from board
             const other = this.existingPersons.get(name);
             if (other) {
                 await this.obsApp.fileManager.processFrontMatter(other.file, (fm) => {
@@ -1172,6 +1208,21 @@ class AddPersonModal extends Modal {
                     const existing = toArray(fm[key]);
                     if (!existing.includes(this.relPerson!.name)) fm[key] = [...existing, this.relPerson!.name];
                 });
+            } else {
+                for (const file of this.obsApp.vault.getMarkdownFiles()) {
+                    const fm = this.obsApp.metadataCache.getFileCache(file)?.frontmatter;
+                    if (!fm || fm.type !== 'person') continue;
+                    const n = (fm.name as string) || file.basename;
+                    if (n === name) {
+                        await this.obsApp.fileManager.processFrontMatter(file, (f) => {
+                            delete f['hidden'];
+                            const key = this.relation === 'child' ? 'parents' : 'children';
+                            const existing = toArray(f[key] ?? []);
+                            if (!existing.includes(this.relPerson!.name)) f[key] = [...existing, this.relPerson!.name];
+                        });
+                        break;
+                    }
+                }
             }
         }
         this.close();

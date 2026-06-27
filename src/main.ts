@@ -42,12 +42,20 @@ export default class PeopleTreePlugin extends Plugin {
                 container.querySelectorAll<HTMLElement>('.nav-file-title[data-path]').forEach(titleEl => {
                     const path = titleEl.dataset.path ?? '';
                     const fm = this.app.metadataCache.getCache(path)?.frontmatter;
-                    const isPerson = fm?.type === 'person';
-                    const existing = titleEl.querySelector('.pt-file-icon');
-                    if (isPerson && !existing) {
-                        const icon = titleEl.createSpan({ cls: 'pt-file-icon', text: '👤' });
-                        titleEl.insertBefore(icon, titleEl.firstChild);
-                    } else if (!isPerson && existing) {
+                    const isPerson = fm?.type === 'person' && !fm?.hidden;
+                    const isHidden = fm?.type === 'person' && !!fm?.hidden;
+                    const existing = titleEl.querySelector('.pt-file-icon') as HTMLElement | null;
+                    if (isPerson) {
+                        if (!existing) {
+                            const icon = titleEl.createSpan({ cls: 'pt-file-icon', text: '👤' });
+                            titleEl.insertBefore(icon, titleEl.firstChild);
+                        } else existing.removeClass('pt-file-icon--hidden');
+                    } else if (isHidden) {
+                        if (!existing) {
+                            const icon = titleEl.createSpan({ cls: 'pt-file-icon pt-file-icon--hidden', text: '👤' });
+                            titleEl.insertBefore(icon, titleEl.firstChild);
+                        } else existing.addClass('pt-file-icon--hidden');
+                    } else if (existing) {
                         existing.remove();
                     }
                 });
