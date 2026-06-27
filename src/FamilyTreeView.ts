@@ -430,13 +430,28 @@ export class FamilyTreeView extends ItemView {
         this.layoutW = canvasW;
         this.layoutH = canvasH;
 
+        // Helpers: pick the correct edge anchor based on relative card positions
+        const hAnchor = (a: {x:number,y:number}, b: {x:number,y:number}): [number,number,number,number] => {
+            const aCx = a.x + NODE_W / 2, bCx = b.x + NODE_W / 2;
+            const fromX = aCx < bCx ? a.x + NODE_W : a.x;
+            const toX   = aCx < bCx ? b.x           : b.x + NODE_W;
+            return [fromX, a.y + NODE_H / 2, toX, b.y + NODE_H / 2];
+        };
+        const vAnchor = (parent: {x:number,y:number}, child: {x:number,y:number}): [number,number,number,number] => {
+            const pCy = parent.y + NODE_H / 2, cCy = child.y + NODE_H / 2;
+            const fromY = pCy < cCy ? parent.y + NODE_H : parent.y;
+            const toY   = pCy < cCy ? child.y           : child.y + NODE_H;
+            return [parent.x + NODE_W / 2, fromY, child.x + NODE_W / 2, toY];
+        };
+
         // Spouse connections + diamond markers
         for (const person of this.persons.values()) {
             if (person.spouse && person.name < person.spouse) {
                 const sp = pos.get(person.spouse), p1 = pos.get(person.name);
                 if (sp && p1) {
-                    this.drawConnector(svg, p1.x + NODE_W, p1.y + NODE_H / 2, sp.x, sp.y + NODE_H / 2, person.name, person.spouse, 'spouse');
-                    this.drawSpouseMarker(svg, (p1.x + NODE_W + sp.x) / 2, p1.y + NODE_H / 2);
+                    const [fx, fy, tx, ty] = hAnchor(p1, sp);
+                    this.drawConnector(svg, fx, fy, tx, ty, person.name, person.spouse, 'spouse');
+                    this.drawSpouseMarker(svg, (fx + tx) / 2, (fy + ty) / 2);
                 }
             }
         }
@@ -451,13 +466,20 @@ export class FamilyTreeView extends ItemView {
                 const par1 = this.persons.get(p1n), par2 = this.persons.get(p2n);
                 if (pp1 && pp2 && par1 && par2 && (par1.spouse === p2n || par2.spouse === p1n)) {
                     const midX = (pp1.x + pp2.x + NODE_W) / 2;
-                    this.drawConnector(svg, midX, pp1.y + NODE_H, cp.x + NODE_W / 2, cp.y, p1n, person.name, 'parent');
+                    const parAvgCy = (pp1.y + pp2.y) / 2 + NODE_H / 2;
+                    const parentsAbove = parAvgCy < cp.y + NODE_H / 2;
+                    const fromY = parentsAbove ? Math.max(pp1.y, pp2.y) + NODE_H : Math.min(pp1.y, pp2.y);
+                    const toY   = parentsAbove ? cp.y : cp.y + NODE_H;
+                    this.drawConnector(svg, midX, fromY, cp.x + NODE_W / 2, toY, p1n, person.name, 'parent');
                     continue;
                 }
             }
             for (const pn of person.parents) {
                 const pp = pos.get(pn);
-                if (pp) this.drawConnector(svg, pp.x + NODE_W / 2, pp.y + NODE_H, cp.x + NODE_W / 2, cp.y, pn, person.name, 'parent');
+                if (pp) {
+                    const [fx, fy, tx, ty] = vAnchor(pp, cp);
+                    this.drawConnector(svg, fx, fy, tx, ty, pn, person.name, 'parent');
+                }
             }
         }
     }
