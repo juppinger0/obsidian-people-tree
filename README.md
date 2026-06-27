@@ -153,10 +153,11 @@ The uploaded photo is saved to the configured *Photos folder* (default: `Attachm
 
 | # | Issue | Status |
 |---|-------|--------|
-| 1 | **Photo upload via file picker may not work in all Electron versions.** Use drag & drop in the modal as a reliable alternative. | open |
+| 1 | Long field values are truncated in tree nodes (hover to reveal full text). | partial fix |
 | 2 | Long field values are truncated in tree nodes (hover to reveal full text). | partial fix |
 | 3 | Timeline mode requires at least 2 persons with a 4-digit year in `born`. | by design |
 | 4 | No mobile-optimised touch controls for zoom/pan yet. | todo |
+
 
 ---
 

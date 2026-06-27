@@ -964,7 +964,6 @@ class AvatarUploadModal extends Modal {
     }
 
     onOpen() {
-        console.log('[PeopleTree] AvatarUploadModal.onOpen() for:', this.person.name);
         const { contentEl } = this;
         contentEl.createEl('h3', { text: `Photo for ${this.person.name}` });
 
@@ -985,15 +984,36 @@ class AvatarUploadModal extends Modal {
             await this.saveFile(await file.arrayBuffer(), file.name);
         });
 
-        // ── Option B: native file input, visible, user clicks it directly ──
+        // ── Option B: native file picker button ─────────────────────────
+        // Use File System Access API (showOpenFilePicker) — reliable in Electron/Chromium.
+        // Falls back to input.showPicker() → input.click() for older environments.
         contentEl.createEl('p', { text: 'Or pick a file:', cls: 'ft-modal-label' });
         const fileInput = contentEl.createEl('input', { type: 'file' }) as HTMLInputElement;
         fileInput.accept = 'image/*';
-        fileInput.style.cssText = 'display:block;margin:4px 0 12px;font-size:0.85em;width:100%';
+        fileInput.style.display = 'none';
         fileInput.addEventListener('change', async () => {
             const file = fileInput.files?.[0];
             if (!file) return;
             await this.saveFile(await file.arrayBuffer(), file.name);
+        });
+
+        const pickBtn = contentEl.createEl('button', { text: '📁 Pick image file…', cls: 'ft-modal-btn' });
+        pickBtn.style.cssText = 'display:block;margin-bottom:12px';
+        pickBtn.addEventListener('click', async () => {
+            if (typeof (window as any).showOpenFilePicker === 'function') {
+                try {
+                    const [handle] = await (window as any).showOpenFilePicker({
+                        types: [{ description: 'Images', accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif'] } }],
+                        multiple: false,
+                    });
+                    const file: File = await handle.getFile();
+                    await this.saveFile(await file.arrayBuffer(), file.name);
+                    return;
+                } catch (err: any) {
+                    if (err.name === 'AbortError') return;
+                }
+            }
+            try { (fileInput as any).showPicker?.(); } catch { fileInput.click(); }
         });
 
         // ── Option C: vault path ────────────────────────────────────────
