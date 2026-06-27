@@ -153,6 +153,13 @@
     border-color: var(--color-accent);
     box-shadow: 0 2px 12px rgba(0,0,0,0.12);
 }
+.ft-node.ft-card-dragging {
+    box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+    border-color: var(--color-accent);
+    opacity: 0.92;
+    z-index: 100;
+    transition: none;
+}
 
 .ft-node.selected {
     border-color: var(--color-accent);

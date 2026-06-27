@@ -1,5 +1,5 @@
 import { App, ItemView, Modal, TFile, WorkspaceLeaf } from 'obsidian';
-import type { PeopleTreeSettings } from './main';
+import type { PeopleTreePlugin, PeopleTreeSettings } from './main';
 
 export const VIEW_TYPE_FAMILY_TREE = 'people-tree-view';
 
@@ -42,7 +42,7 @@ export class FamilyTreeView extends ItemView {
     private layoutW = 0;
     private layoutH = 0;
 
-    constructor(leaf: WorkspaceLeaf, private app: App, private settings: PeopleTreeSettings) { super(leaf); }
+    constructor(leaf: WorkspaceLeaf, private app: App, private settings: PeopleTreeSettings, private plugin: PeopleTreePlugin) { super(leaf); }
 
     getViewType() { return VIEW_TYPE_FAMILY_TREE; }
     getDisplayText() { return 'People Tree'; }
@@ -363,6 +363,11 @@ export class FamilyTreeView extends ItemView {
             const exportBtn = tb.createEl('button', { cls: 'ft-export-btn', title: 'Als PNG herunterladen' });
             exportBtn.createSpan({ text: '⬇ PNG' });
             exportBtn.addEventListener('click', () => this.exportPng());
+
+            if (this.viewMode === 'tree' || this.viewMode === 'orgchart') {
+                const resetBtn = tb.createEl('button', { cls: 'ft-tb-btn', title: 'Manuelles Layout zurücksetzen — kehrt zur Auto-Anordnung zurück', text: '↺' });
+                resetBtn.addEventListener('click', async () => { await this.plugin.clearPositions(); await this.render(); });
+            }
         }
 
         if (this.viewMode === 'list') {
@@ -397,13 +402,33 @@ export class FamilyTreeView extends ItemView {
                 const x = startX + i * (NODE_W + H_GAP);
                 const y = V_GAP / 2 + gen * (NODE_H + V_GAP);
                 pos.set(p.name, { x, y });
-                this.renderNode(canvas, p, x, y);
             });
         }
 
+        // Override auto positions with manually saved ones
+        let canvasW = totalW, canvasH = totalH;
+        for (const person of this.persons.values()) {
+            const saved = this.plugin.getPosition(person.file.path);
+            if (saved) {
+                pos.set(person.name, { x: saved.x, y: saved.y });
+                canvasW = Math.max(canvasW, saved.x + NODE_W + H_GAP);
+                canvasH = Math.max(canvasH, saved.y + NODE_H + V_GAP);
+            }
+        }
+        if (canvasW > totalW || canvasH > totalH) {
+            this.resizeSvg(svg, canvasW, canvasH);
+            canvas.style.width = canvasW + 'px';
+            canvas.style.height = canvasH + 'px';
+        }
+
+        for (const [name, { x, y }] of pos) {
+            const person = this.persons.get(name);
+            if (person) this.renderNode(canvas, person, x, y);
+        }
+
         this.layoutPos = pos;
-        this.layoutW = totalW;
-        this.layoutH = totalH;
+        this.layoutW = canvasW;
+        this.layoutH = canvasH;
 
         // Spouse connections + diamond markers
         for (const person of this.persons.values()) {
@@ -662,6 +687,7 @@ export class FamilyTreeView extends ItemView {
         if (this.expandedPersons.has(person.name)) node.addClass('expanded');
 
         const header = node.createDiv({ cls: 'ft-node-header' });
+        this.makeDraggable(node, header, person);
 
         // Avatar
         this.renderAvatarCircle(header, person, 40);
@@ -718,6 +744,45 @@ export class FamilyTreeView extends ItemView {
             if ((e.target as HTMLElement).closest('button, input')) return;
             this.selectedPerson = this.selectedPerson === person.name ? null : person.name;
             this.applySelection(this.selectedPerson);
+        });
+    }
+
+    // ── Card drag ─────────────────────────────────────────────────────────
+
+    private makeDraggable(cardEl: HTMLElement, handle: HTMLElement, person: Person) {
+        handle.style.cursor = 'grab';
+        handle.addEventListener('mousedown', (e: MouseEvent) => {
+            if (e.button !== 0) return;
+            if ((e.target as HTMLElement).closest('button, a, input')) return;
+            e.preventDefault();
+            e.stopPropagation(); // don't trigger viewport pan
+
+            const startScreenX = e.clientX;
+            const startScreenY = e.clientY;
+            const startLeft = parseFloat(cardEl.style.left) || 0;
+            const startTop = parseFloat(cardEl.style.top) || 0;
+
+            handle.style.cursor = 'grabbing';
+            cardEl.addClass('ft-card-dragging');
+
+            const onMove = (me: MouseEvent) => {
+                cardEl.style.left = `${startLeft + (me.clientX - startScreenX) / this.zoom}px`;
+                cardEl.style.top  = `${startTop  + (me.clientY - startScreenY) / this.zoom}px`;
+            };
+
+            const onUp = async () => {
+                handle.style.cursor = 'grab';
+                cardEl.removeClass('ft-card-dragging');
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+                const newX = Math.round(parseFloat(cardEl.style.left));
+                const newY = Math.round(parseFloat(cardEl.style.top));
+                await this.plugin.savePosition(person.file.path, newX, newY);
+                await this.render();
+            };
+
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
         });
     }
 

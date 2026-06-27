@@ -11,17 +11,17 @@ const DEFAULT_SETTINGS: PeopleTreeSettings = {
     personFolder: 'People',
 };
 
-export default class PeopleTreePlugin extends Plugin {
+export class PeopleTreePlugin extends Plugin {
     settings: PeopleTreeSettings;
+    private layoutPositions: Record<string, { x: number; y: number }> = {};
 
     async onload() {
         await this.loadSettings();
-        this.registerView(VIEW_TYPE_FAMILY_TREE, (leaf) => new FamilyTreeView(leaf, this.app, this.settings));
+        this.registerView(VIEW_TYPE_FAMILY_TREE, (leaf) => new FamilyTreeView(leaf, this.app, this.settings, this));
         this.addRibbonIcon('users', 'Open People Tree', () => this.activateView());
         this.addCommand({ id: 'open-people-tree', name: 'Open People Tree', callback: () => this.activateView() });
         this.addSettingTab(new PeopleTreeSettingTab(this.app, this));
 
-        // File-Explorer-Icons für Personen-Notizen
         this.app.workspace.onLayoutReady(() => this.updateFileIcons());
         this.registerEvent(this.app.metadataCache.on('resolved', () => this.updateFileIcons()));
         this.registerEvent(this.app.workspace.on('layout-change', () => this.updateFileIcons()));
@@ -34,7 +34,7 @@ export default class PeopleTreePlugin extends Plugin {
         document.querySelectorAll('.pt-file-icon').forEach(el => el.remove());
     }
 
-    private updateFileIcons() {
+    updateFileIcons() {
         try {
             for (const leaf of this.app.workspace.getLeavesOfType('file-explorer')) {
                 const container = (leaf.view as { containerEl?: HTMLElement }).containerEl;
@@ -60,17 +60,41 @@ export default class PeopleTreePlugin extends Plugin {
                     }
                 });
             }
-        } catch {
-            // file-explorer DOM structure changed — icons silently disabled
-        }
+        } catch { /* file-explorer DOM structure changed — icons silently disabled */ }
+    }
+
+    getPosition(filePath: string): { x: number; y: number } | null {
+        return this.layoutPositions[filePath] ?? null;
+    }
+
+    async savePosition(filePath: string, x: number, y: number) {
+        this.layoutPositions[filePath] = { x, y };
+        await this.persist();
+    }
+
+    async clearPositions() {
+        this.layoutPositions = {};
+        await this.persist();
     }
 
     async loadSettings() {
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+        const raw = await this.loadData();
+        // Migrate: old format was flat settings object, new format is { settings, positions }
+        if (raw?.settings) {
+            this.settings = Object.assign({}, DEFAULT_SETTINGS, raw.settings);
+            this.layoutPositions = raw.positions ?? {};
+        } else {
+            this.settings = Object.assign({}, DEFAULT_SETTINGS, raw);
+            this.layoutPositions = {};
+        }
     }
 
     async saveSettings() {
-        await this.saveData(this.settings);
+        await this.persist();
+    }
+
+    private async persist() {
+        await this.saveData({ settings: this.settings, positions: this.layoutPositions });
     }
 
     async activateView() {
@@ -80,6 +104,8 @@ export default class PeopleTreePlugin extends Plugin {
         this.app.workspace.revealLeaf(leaf);
     }
 }
+
+export default PeopleTreePlugin;
 
 class PeopleTreeSettingTab extends PluginSettingTab {
     constructor(app: App, private plugin: PeopleTreePlugin) { super(app, plugin); }
