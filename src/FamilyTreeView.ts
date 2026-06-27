@@ -423,8 +423,7 @@ export class FamilyTreeView extends ItemView {
         const totalH = (maxGen + 1) * (NODE_H + V_GAP) + V_GAP;
 
         this.resizeSvg(svg, totalW, totalH);
-        canvas.style.width = totalW + 'px';
-        canvas.style.height = totalH + 'px';
+        canvas.setCssStyles({ width: totalW + 'px', height: totalH + 'px' });
 
         const pos: Map<string, { x: number; y: number }> = new Map();
 
@@ -451,8 +450,7 @@ export class FamilyTreeView extends ItemView {
         }
         if (canvasW > totalW || canvasH > totalH) {
             this.resizeSvg(svg, canvasW, canvasH);
-            canvas.style.width = canvasW + 'px';
-            canvas.style.height = canvasH + 'px';
+            canvas.setCssStyles({ width: canvasW + 'px', height: canvasH + 'px' });
         }
 
         for (const [name, { x, y }] of pos) {
@@ -544,8 +542,7 @@ export class FamilyTreeView extends ItemView {
         const totalH = (maxGen + 1) * (NODE_H + V_GAP) + V_GAP + 50;
 
         this.resizeSvg(svg, totalW, totalH);
-        canvas.style.width = totalW + 'px';
-        canvas.style.height = totalH + 'px';
+        canvas.setCssStyles({ width: totalW + 'px', height: totalH + 'px' });
         canvas.addClass('ft-canvas-timeline');
 
         this.drawYearAxis(svg, minYear, maxYear, totalW, totalH);
@@ -586,8 +583,7 @@ export class FamilyTreeView extends ItemView {
         const totalH = Math.max((maxYear - minYear) * TL_PX_PER_YEAR + 120, 600);
 
         this.resizeSvg(svg, totalW, totalH);
-        canvas.style.width = totalW + 'px';
-        canvas.style.height = totalH + 'px';
+        canvas.setCssStyles({ width: totalW + 'px', height: totalH + 'px' });
         canvas.addClass('ft-canvas-timeline');
 
         this.drawYearAxisV(svg, minYear, maxYear, totalW, totalH, X_AXIS_OFFSET);
@@ -1204,7 +1200,7 @@ export class FamilyTreeView extends ItemView {
     }
 
     private applyTransform(canvas: HTMLElement | null) {
-        if (canvas) canvas.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
+        if (canvas) canvas.setCssStyles({ transform: `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})` });
     }
 
     private getCanvas(): HTMLElement { return this.containerEl.querySelector('.ft-canvas') as HTMLElement; }
@@ -1502,7 +1498,7 @@ class AddPersonModal extends Modal {
             nameInput.addEventListener('input', () => {
                 const q = nameInput.value.trim().toLowerCase();
                 grid.querySelectorAll<HTMLElement>('.ft-suggest-chip').forEach(chip => {
-                    chip.style.display = (!q || chip.textContent!.toLowerCase().includes(q)) ? '' : 'none';
+                    chip.setCssStyles({ display: (!q || chip.textContent!.toLowerCase().includes(q)) ? '' : 'none' });
                 });
             });
         }

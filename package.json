@@ -1,6 +1,6 @@
 {
   "name": "people-tree",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Obsidian plugin: interactive family tree from YAML frontmatter",
   "main": "main.js",
   "scripts": {
