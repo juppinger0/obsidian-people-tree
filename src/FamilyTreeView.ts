@@ -1089,12 +1089,18 @@ class AddPersonModal extends Modal {
 
     private getUnlinkedPersons(): string[] {
         if (this.relation === 'none' || !this.relPerson) return [];
-        const alreadyLinked = new Set<string>([this.relPerson.name]);
-        if (this.relation === 'child') this.relPerson.children.forEach(n => alreadyLinked.add(n));
-        if (this.relation === 'parent') this.relPerson.parents.forEach(n => alreadyLinked.add(n));
-        return [...this.existingPersons.keys()]
-            .filter(n => !alreadyLinked.has(n))
-            .sort();
+        const exclude = new Set<string>([this.relPerson.name]);
+        if (this.relation === 'child') this.relPerson.children.forEach(n => exclude.add(n));
+        if (this.relation === 'parent') this.relPerson.parents.forEach(n => exclude.add(n));
+        // Only persons that exist in vault but are NOT on the board yet
+        const result: string[] = [];
+        for (const file of this.obsApp.vault.getMarkdownFiles()) {
+            const fm = this.obsApp.metadataCache.getFileCache(file)?.frontmatter;
+            if (!fm || fm.type !== 'person') continue;
+            const name = (fm.name as string) || file.basename;
+            if (!this.existingPersons.has(name) && !exclude.has(name)) result.push(name);
+        }
+        return result.sort();
     }
 
     private async link(name: string) {
