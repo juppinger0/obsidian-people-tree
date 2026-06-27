@@ -34,6 +34,7 @@ export class FamilyTreeView extends ItemView {
     private selectedPerson: string | null = null;
     private expandedPersons: Set<string> = new Set();
     private viewMode: ViewMode = 'tree';
+    private timelineDir: 'h' | 'v' = 'h';
     private filterText = '';
     private sortField = 'name';
     private sortDir: 1 | -1 = 1;
@@ -388,6 +389,17 @@ export class FamilyTreeView extends ItemView {
                 const resetBtn = tb.createEl('button', { cls: 'ft-tb-btn', title: 'Manuelles Layout zurücksetzen — kehrt zur Auto-Anordnung zurück', text: '↺' });
                 resetBtn.addEventListener('click', async () => { await this.plugin.clearPositions(); await this.render(); });
             }
+            if (this.viewMode === 'timeline') {
+                const dirBtn = tb.createEl('button', {
+                    cls: 'ft-tb-btn ft-tl-dir-btn',
+                    title: this.timelineDir === 'h' ? 'Auf vertikalen Zeitstrahl wechseln' : 'Auf horizontalen Zeitstrahl wechseln',
+                    text: this.timelineDir === 'h' ? '⇕ Vertikal' : '⇔ Horizontal',
+                });
+                dirBtn.addEventListener('click', () => {
+                    this.timelineDir = this.timelineDir === 'h' ? 'v' : 'h';
+                    this.render();
+                });
+            }
         }
 
         if (this.viewMode === 'list') {
@@ -516,8 +528,17 @@ export class FamilyTreeView extends ItemView {
 
         const minYear = Math.min(...years) - 5;
         const maxYear = Math.max(...years) + 15;
-        const totalW = Math.max((maxYear - minYear) * TL_PX_PER_YEAR + 120, 800);
         const maxGen = Math.max(...byGen.keys());
+
+        if (this.timelineDir === 'v') {
+            this.renderTimelineVertical(canvas, svg, byGen, minYear, maxYear, maxGen);
+        } else {
+            this.renderTimelineHorizontal(canvas, svg, byGen, minYear, maxYear, maxGen);
+        }
+    }
+
+    private renderTimelineHorizontal(canvas: HTMLElement, svg: SVGElement, byGen: Map<number, Person[]>, minYear: number, maxYear: number, maxGen: number) {
+        const totalW = Math.max((maxYear - minYear) * TL_PX_PER_YEAR + 120, 800);
         const totalH = (maxGen + 1) * (NODE_H + V_GAP) + V_GAP + 50;
 
         this.resizeSvg(svg, totalW, totalH);
@@ -525,25 +546,18 @@ export class FamilyTreeView extends ItemView {
         canvas.style.height = totalH + 'px';
         canvas.addClass('ft-canvas-timeline');
 
-        // Year axis
         this.drawYearAxis(svg, minYear, maxYear, totalW, totalH);
 
         const pos: Map<string, { x: number; y: number }> = new Map();
-
         for (const [gen, persons] of byGen) {
             const y = V_GAP / 2 + gen * (NODE_H + V_GAP);
-            // First pass: place by known year
             const placed: { person: Person; x: number }[] = [];
             const unplaced: Person[] = [];
             for (const p of persons) {
                 const yr = extractYear(p.born);
-                if (yr !== null) {
-                    placed.push({ person: p, x: 60 + (yr - minYear) * TL_PX_PER_YEAR });
-                } else {
-                    unplaced.push(p);
-                }
+                if (yr !== null) placed.push({ person: p, x: 60 + (yr - minYear) * TL_PX_PER_YEAR });
+                else unplaced.push(p);
             }
-            // Second pass: unplaced → average of sibling positions or row center
             for (const p of unplaced) {
                 const siblingXs = placed.filter(pl => pl.person.generation === gen).map(pl => pl.x);
                 const x = siblingXs.length ? siblingXs.reduce((a, b) => a + b, 0) / siblingXs.length : totalW / 2;
@@ -555,14 +569,58 @@ export class FamilyTreeView extends ItemView {
             }
         }
 
-        // Store layout (pos has center-X; adjust to top-left for export)
         const tlAdjusted = new Map<string, { x: number; y: number }>();
         for (const [n, p] of pos) tlAdjusted.set(n, { x: p.x - NODE_W / 2, y: p.y });
         this.layoutPos = tlAdjusted;
         this.layoutW = totalW;
         this.layoutH = totalH;
 
-        // Draw connections
+        this.drawTimelineConnections(svg, pos);
+    }
+
+    private renderTimelineVertical(canvas: HTMLElement, svg: SVGElement, byGen: Map<number, Person[]>, minYear: number, maxYear: number, maxGen: number) {
+        const X_AXIS_OFFSET = 60; // space on the left for year labels
+        const totalW = X_AXIS_OFFSET + (maxGen + 1) * (NODE_W + H_GAP) + H_GAP;
+        const totalH = Math.max((maxYear - minYear) * TL_PX_PER_YEAR + 120, 600);
+
+        this.resizeSvg(svg, totalW, totalH);
+        canvas.style.width = totalW + 'px';
+        canvas.style.height = totalH + 'px';
+        canvas.addClass('ft-canvas-timeline');
+
+        this.drawYearAxisV(svg, minYear, maxYear, totalW, totalH, X_AXIS_OFFSET);
+
+        const pos: Map<string, { x: number; y: number }> = new Map();
+        for (const [gen, persons] of byGen) {
+            const xCenter = X_AXIS_OFFSET + H_GAP / 2 + gen * (NODE_W + H_GAP) + NODE_W / 2;
+            const placed: { person: Person; y: number }[] = [];
+            const unplaced: Person[] = [];
+            for (const p of persons) {
+                const yr = extractYear(p.born);
+                if (yr !== null) placed.push({ person: p, y: 60 + (yr - minYear) * TL_PX_PER_YEAR });
+                else unplaced.push(p);
+            }
+            for (const p of unplaced) {
+                const siblingYs = placed.filter(pl => pl.person.generation === gen).map(pl => pl.y);
+                const y = siblingYs.length ? siblingYs.reduce((a, b) => a + b, 0) / siblingYs.length : totalH / 2;
+                placed.push({ person: p, y });
+            }
+            for (const { person, y } of placed) {
+                pos.set(person.name, { x: xCenter, y });
+                this.renderNode(canvas, person, xCenter - NODE_W / 2, y);
+            }
+        }
+
+        const tlAdjusted = new Map<string, { x: number; y: number }>();
+        for (const [n, p] of pos) tlAdjusted.set(n, { x: p.x - NODE_W / 2, y: p.y });
+        this.layoutPos = tlAdjusted;
+        this.layoutW = totalW;
+        this.layoutH = totalH;
+
+        this.drawTimelineConnections(svg, pos);
+    }
+
+    private drawTimelineConnections(svg: SVGElement, pos: Map<string, { x: number; y: number }>) {
         for (const person of this.persons.values()) {
             const cp = pos.get(person.name);
             if (!cp) continue;
@@ -573,8 +631,9 @@ export class FamilyTreeView extends ItemView {
             if (person.spouse && person.name < person.spouse) {
                 const sp = pos.get(person.spouse), p1 = pos.get(person.name);
                 if (sp && p1) {
+                    const mx = (p1.x + NODE_W / 2 + sp.x - NODE_W / 2) / 2;
                     this.drawConnector(svg, p1.x + NODE_W / 2, p1.y + NODE_H / 2, sp.x - NODE_W / 2, sp.y + NODE_H / 2, person.name, person.spouse, 'spouse');
-                    this.drawSpouseMarker(svg, (p1.x + NODE_W / 2 + sp.x - NODE_W / 2) / 2, p1.y + NODE_H / 2);
+                    this.drawSpouseMarker(svg, mx, p1.y + NODE_H / 2);
                 }
             }
         }
@@ -607,6 +666,41 @@ export class FamilyTreeView extends ItemView {
             const grid = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             grid.setAttribute('x1', String(x)); grid.setAttribute('x2', String(x));
             grid.setAttribute('y1', '0'); grid.setAttribute('y2', String(totalH - 36));
+            grid.setAttribute('stroke', 'var(--background-modifier-border)'); grid.setAttribute('stroke-width', '1');
+            grid.setAttribute('stroke-dasharray', '3,4'); grid.setAttribute('opacity', '0.5');
+            svg.appendChild(grid);
+        }
+    }
+
+    private drawYearAxisV(svg: SVGElement, minYear: number, maxYear: number, totalW: number, totalH: number, xOffset: number) {
+        const axisX = xOffset - 10;
+        const yStart = 60;
+        const yEnd = 60 + (maxYear - minYear) * TL_PX_PER_YEAR;
+        // Axis line
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', String(axisX)); line.setAttribute('x2', String(axisX));
+        line.setAttribute('y1', String(yStart)); line.setAttribute('y2', String(yEnd));
+        line.setAttribute('stroke', 'var(--background-modifier-border)'); line.setAttribute('stroke-width', '1');
+        svg.appendChild(line);
+        // Decade ticks + labels + horizontal grid lines
+        const startDecade = Math.ceil(minYear / 10) * 10;
+        for (let yr = startDecade; yr <= maxYear; yr += 10) {
+            const y = 60 + (yr - minYear) * TL_PX_PER_YEAR;
+            const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            tick.setAttribute('x1', String(axisX - 6)); tick.setAttribute('x2', String(axisX + 6));
+            tick.setAttribute('y1', String(y)); tick.setAttribute('y2', String(y));
+            tick.setAttribute('stroke', 'var(--text-faint)'); tick.setAttribute('stroke-width', '1');
+            svg.appendChild(tick);
+            const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            label.setAttribute('x', String(axisX - 8)); label.setAttribute('y', String(y + 4));
+            label.setAttribute('text-anchor', 'end'); label.setAttribute('font-size', '11');
+            label.setAttribute('fill', 'var(--text-faint)');
+            label.textContent = String(yr);
+            svg.appendChild(label);
+            // Horizontal grid line
+            const grid = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            grid.setAttribute('x1', String(axisX + 6)); grid.setAttribute('x2', String(totalW - 10));
+            grid.setAttribute('y1', String(y)); grid.setAttribute('y2', String(y));
             grid.setAttribute('stroke', 'var(--background-modifier-border)'); grid.setAttribute('stroke-width', '1');
             grid.setAttribute('stroke-dasharray', '3,4'); grid.setAttribute('opacity', '0.5');
             svg.appendChild(grid);
@@ -1078,6 +1172,13 @@ export class FamilyTreeView extends ItemView {
         const stop = () => { panning = false; viewport.style.cursor = 'grab'; };
         viewport.addEventListener('mouseup', stop);
         viewport.addEventListener('mouseleave', stop);
+        viewport.addEventListener('click', (e) => {
+            const t = e.target as HTMLElement;
+            if (t === viewport || t === canvas) {
+                this.selectedPerson = null;
+                this.applySelection(null);
+            }
+        });
         viewport.addEventListener('wheel', (e) => {
             e.preventDefault();
             this.zoom = Math.min(Math.max(this.zoom * (e.deltaY < 0 ? 1.1 : 0.9), 0.15), 4);
