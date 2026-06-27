@@ -115,6 +115,16 @@ To remove a photo, open the dialog and click **"Remove photo"**.
 
 ---
 
+## Known Issues / TODO
+
+| # | Issue | Status |
+|---|-------|--------|
+| 1 | **Photo upload only works reliably in List mode** via the 📷 button. In Tree/Org-Chart/Timeline the modal opens but the native file picker may be blocked by Electron's security sandbox. Workaround: switch to List mode, upload there, then switch back. | open |
+| 2 | Long field values (e.g. vault paths) wrap awkwardly in narrow tree nodes. Hover to reveal full text. | partially fixed |
+| 3 | Timeline mode requires at least 2 persons with a 4-digit year in `born`. | by design |
+
+---
+
 ## Development
 
 ```bash

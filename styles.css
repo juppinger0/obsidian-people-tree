@@ -255,11 +255,17 @@
 
 /* ── Expanded Detail ───────────────────────────────────────────────────── */
 
+/* Node widens when expanded so detail fits */
+.ft-node.expanded {
+    width: 260px !important;
+    z-index: 10;
+}
+
 .ft-detail {
     display: none;
     border-top: 1px solid var(--background-modifier-border);
     padding: 8px 12px 10px;
-    max-height: 240px;
+    max-height: 260px;
     overflow-y: auto;
     flex-direction: column;
     gap: 4px;
@@ -271,15 +277,15 @@
 
 .ft-detail-row {
     display: flex;
-    align-items: baseline;
-    gap: 6px;
+    align-items: center;
+    gap: 4px;
     font-size: 0.76em;
     min-height: 20px;
 }
 
 .ft-label {
     color: var(--text-faint);
-    min-width: 72px;
+    min-width: 66px;
     flex-shrink: 0;
     font-size: 0.9em;
 }
@@ -287,15 +293,23 @@
 .ft-val {
     color: var(--text-normal);
     flex: 1;
+    min-width: 0;
     cursor: pointer;
     border-radius: 3px;
     padding: 1px 3px;
     transition: background 0.1s;
-    word-break: break-word;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .ft-val:hover {
     background: var(--background-modifier-hover);
+    white-space: normal;      /* show full text on hover */
+    word-break: break-all;
+    overflow: visible;
+    position: relative;
+    z-index: 5;
 }
 
 .ft-add-row {
