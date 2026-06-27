@@ -40,9 +40,17 @@ Search for **"People Tree"** in Obsidian → Settings → Community plugins.
 
 ---
 
-## How to add a person
+## Getting started
 
-Create a Markdown note anywhere in your vault with `type: person` in the frontmatter:
+### Creating persons
+
+There are three ways to add a person:
+
+**1. Toolbar button** — Click **`+ Person`** in the toolbar at the top of the People Tree view. A dialog opens where you enter a name and optional birth date. The note is created automatically.
+
+**2. From within a person** — Expand any card with **▼** and click the **`+`** button next to *Eltern* (parents) or *Kinder* (children). This creates the new person *and* links it to the current one in a single step — both notes are updated automatically.
+
+**3. Manually** — Create a Markdown note anywhere in your vault with `type: person` in the frontmatter:
 
 ```yaml
 ---
@@ -61,7 +69,16 @@ children:
 ---
 ```
 
-The plugin picks up the note automatically — no configuration needed. Names in `parents`, `spouse` and `children` must match the `name` field of the referenced person exactly.
+The plugin picks up the note automatically. Names in `parents`, `spouse` and `children` must match the `name` field of the referenced person exactly.
+
+### Deleting persons
+
+- **In Tree / Org Chart / Timeline:** expand the card with **▼** → scroll to the bottom → **🗑 Person löschen** (delete person). A confirmation dialog appears before anything is deleted.
+- **In List mode:** click the **🗑** button at the end of any row.
+
+> **Note:** Deleting a person removes only their note. References to that person in *other* notes (e.g. someone's `parents` list) are not updated automatically. Edit those manually if needed.
+
+### How to add a person — frontmatter reference
 
 ### Frontmatter fields
 

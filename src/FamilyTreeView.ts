@@ -207,6 +207,10 @@ export class FamilyTreeView extends ItemView {
             b.addEventListener('click', () => { this.viewMode = m.id; this.zoom = 1; this.panX = 0; this.panY = 0; this.render(); });
         }
 
+        const newPersonBtn = tb.createEl('button', { cls: 'ft-new-person-btn', title: 'Neue Person anlegen' });
+        newPersonBtn.createSpan({ text: '+ Person' });
+        newPersonBtn.addEventListener('click', () => new AddPersonModal(this.app, 'none', null, this.settings.personFolder, () => this.render()).open());
+
         if (this.viewMode !== 'list') {
             const zoomGroup = tb.createDiv({ cls: 'ft-zoom-group' });
             const z = (t: string, title: string, fn: () => void) => {
@@ -482,6 +486,8 @@ export class FamilyTreeView extends ItemView {
                 .addEventListener('click', () => this.app.workspace.openLinkText(person.file.path, ''));
             actCell.createEl('button', { text: '📷', cls: 'ft-list-btn', title: 'Foto hochladen/ändern' })
                 .addEventListener('click', () => new AvatarUploadModal(this.app, person, this.settings.photosFolder, () => this.render()).open());
+            actCell.createEl('button', { text: '🗑', cls: 'ft-list-btn ft-list-btn-danger', title: 'Person löschen' })
+                .addEventListener('click', () => this.deletePerson(person));
 
             // Inline editing on cell click
             for (const [i, field] of ['born', 'died', 'parents', 'spouse', 'children'].entries()) {
@@ -539,8 +545,8 @@ export class FamilyTreeView extends ItemView {
         this.detailField(detail, person, 'Geburtsdatum', 'born', person.born, false);
         this.detailField(detail, person, 'Sterbedatum', 'died', person.died, false);
         this.detailField(detail, person, 'Ehepartner', 'spouse', person.spouse, false);
-        this.detailField(detail, person, 'Eltern', 'parents', person.parents.join(', '), true);
-        this.detailField(detail, person, 'Kinder', 'children', person.children.join(', '), true);
+        this.detailFieldWithAdd(detail, person, 'Eltern', 'parents', person.parents.join(', '), 'parent');
+        this.detailFieldWithAdd(detail, person, 'Kinder', 'children', person.children.join(', '), 'child');
         // Avatar-Zeile mit 📷-Button
         const avatarRow = detail.createDiv({ cls: 'ft-detail-row' });
         avatarRow.createEl('span', { cls: 'ft-label', text: 'Foto' });
@@ -558,6 +564,9 @@ export class FamilyTreeView extends ItemView {
         const addRow = detail.createDiv({ cls: 'ft-add-row' });
         const addBtn = addRow.createEl('button', { cls: 'ft-add-btn', text: '+ Feld hinzufügen' });
         addBtn.addEventListener('click', (e) => { e.stopPropagation(); this.showAddField(addRow, person, addBtn); });
+
+        const deleteBtn = detail.createEl('button', { cls: 'ft-delete-person-btn', text: '🗑 Person löschen' });
+        deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); this.deletePerson(person); });
 
         node.addEventListener('click', (e) => {
             if ((e.target as HTMLElement).closest('button, input')) return;
@@ -593,6 +602,38 @@ export class FamilyTreeView extends ItemView {
         const val = row.createEl('span', { cls: 'ft-val', text: value || '—' });
         val.title = 'Klick zum Bearbeiten';
         val.addEventListener('click', (e) => { e.stopPropagation(); this.inlineEdit(val, person, field, value, isArray); });
+    }
+
+    private detailFieldWithAdd(parent: HTMLElement, person: Person, label: string, field: 'parents' | 'children', value: string, relation: 'parent' | 'child') {
+        const row = parent.createDiv({ cls: 'ft-detail-row' });
+        row.createEl('span', { cls: 'ft-label', text: label });
+        const val = row.createEl('span', { cls: 'ft-val', text: value || '—' });
+        val.title = 'Klick zum Bearbeiten';
+        val.addEventListener('click', (e) => { e.stopPropagation(); this.inlineEdit(val, person, field, value, true); });
+        const addBtn = row.createEl('button', { cls: 'ft-icon-btn', text: '+', title: `${label.slice(0, -1)} hinzufügen` });
+        addBtn.addEventListener('click', (e) => { e.stopPropagation(); new AddPersonModal(this.app, relation, person, this.settings.personFolder, () => this.render()).open(); });
+    }
+
+    private async deletePerson(person: Person) {
+        const confirmed = await new Promise<boolean>(resolve => {
+            const modal = new (class extends Modal {
+                onOpen() {
+                    this.contentEl.createEl('h3', { text: 'Person löschen?' });
+                    this.contentEl.createEl('p', { text: `"${person.name}" wird dauerhaft gelöscht. Verweise in anderen Notizen werden nicht automatisch bereinigt.` });
+                    const footer = this.contentEl.createDiv({ cls: 'ft-modal-footer' });
+                    footer.createEl('button', { text: 'Abbrechen', cls: 'ft-modal-btn' })
+                        .addEventListener('click', () => { this.close(); resolve(false); });
+                    const del = footer.createEl('button', { text: 'Löschen', cls: 'ft-modal-btn ft-modal-btn-danger' });
+                    del.style.marginLeft = '8px';
+                    del.addEventListener('click', () => { this.close(); resolve(true); });
+                }
+                onClose() { this.contentEl.empty(); }
+            })(this.app);
+            modal.open();
+        });
+        if (!confirmed) return;
+        await this.app.vault.delete(person.file);
+        await this.render();
     }
 
     private showAddField(container: HTMLElement, person: Person, trigger: HTMLElement) {
@@ -918,6 +959,74 @@ class AvatarUploadModal extends Modal {
         } catch (err) {
             console.error('[PeopleTree] Avatar-Upload:', err);
         }
+    }
+
+    onClose() { this.contentEl.empty(); }
+}
+
+// ── Add Person Modal ──────────────────────────────────────────────────────
+
+class AddPersonModal extends Modal {
+    constructor(
+        private readonly obsApp: App,
+        private readonly relation: 'none' | 'parent' | 'child',
+        private readonly relPerson: Person | null,
+        private readonly personFolder: string,
+        private readonly onDone: () => void,
+    ) { super(obsApp); }
+
+    onOpen() {
+        const { contentEl } = this;
+        const titles: Record<string, string> = {
+            none: 'Add person',
+            parent: `Add parent for ${this.relPerson?.name}`,
+            child: `Add child for ${this.relPerson?.name}`,
+        };
+        contentEl.createEl('h3', { text: titles[this.relation] });
+
+        contentEl.createEl('label', { text: 'Name', cls: 'ft-modal-label' });
+        const nameInput = contentEl.createEl('input', { type: 'text', placeholder: 'Full name' }) as HTMLInputElement;
+        nameInput.style.cssText = 'display:block;width:100%;margin-bottom:12px';
+
+        contentEl.createEl('label', { text: 'Born (optional)', cls: 'ft-modal-label' });
+        const bornInput = contentEl.createEl('input', { type: 'text', placeholder: 'e.g. 01.01.1970' }) as HTMLInputElement;
+        bornInput.style.cssText = 'display:block;width:100%;margin-bottom:16px';
+
+        const btn = contentEl.createEl('button', { text: 'Create', cls: 'ft-modal-btn mod-cta' });
+        btn.addEventListener('click', async () => {
+            const name = nameInput.value.trim();
+            if (!name) { nameInput.focus(); return; }
+            await this.create(name, bornInput.value.trim());
+        });
+        nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') btn.click(); });
+        nameInput.focus();
+    }
+
+    private async create(name: string, born: string) {
+        const folder = this.personFolder?.trim() || '';
+        const path = folder ? `${folder}/${name}.md` : `${name}.md`;
+        if (folder && !this.obsApp.vault.getAbstractFileByPath(folder)) {
+            await this.obsApp.vault.createFolder(folder);
+        }
+        let content = `---\ntype: person\nname: ${name}\nborn: ${born}\ndied: \n`;
+        if (this.relation === 'child' && this.relPerson) {
+            content += `parents:\n  - ${this.relPerson.name}\n`;
+        } else if (this.relation === 'parent' && this.relPerson) {
+            content += `children:\n  - ${this.relPerson.name}\n`;
+        }
+        content += `spouse: \nchildren: \n---\n`;
+        if (!this.obsApp.vault.getAbstractFileByPath(path)) {
+            await this.obsApp.vault.create(path, content);
+        }
+        if (this.relPerson) {
+            await this.obsApp.fileManager.processFrontMatter(this.relPerson.file, (fm) => {
+                const key = this.relation === 'child' ? 'children' : 'parents';
+                const existing = toArray(fm[key]);
+                if (!existing.includes(name)) fm[key] = [...existing, name];
+            });
+        }
+        this.close();
+        this.onDone();
     }
 
     onClose() { this.contentEl.empty(); }
