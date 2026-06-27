@@ -20,9 +20,38 @@ export default class PeopleTreePlugin extends Plugin {
         this.addRibbonIcon('users', 'Open People Tree', () => this.activateView());
         this.addCommand({ id: 'open-people-tree', name: 'Open People Tree', callback: () => this.activateView() });
         this.addSettingTab(new PeopleTreeSettingTab(this.app, this));
+
+        // File-Explorer-Icons für Personen-Notizen
+        this.app.workspace.onLayoutReady(() => this.updateFileIcons());
+        this.registerEvent(this.app.metadataCache.on('resolved', () => this.updateFileIcons()));
+        this.registerEvent(this.app.workspace.on('layout-change', () => this.updateFileIcons()));
+        this.registerEvent(this.app.vault.on('rename', () => this.updateFileIcons()));
+        this.registerEvent(this.app.vault.on('delete', () => this.updateFileIcons()));
     }
 
-    onunload() { this.app.workspace.detachLeavesOfType(VIEW_TYPE_FAMILY_TREE); }
+    onunload() {
+        this.app.workspace.detachLeavesOfType(VIEW_TYPE_FAMILY_TREE);
+        document.querySelectorAll('.pt-file-icon').forEach(el => el.remove());
+    }
+
+    private updateFileIcons() {
+        for (const leaf of this.app.workspace.getLeavesOfType('file-explorer')) {
+            const container = (leaf.view as { containerEl?: HTMLElement }).containerEl;
+            if (!container) continue;
+            container.querySelectorAll<HTMLElement>('.nav-file-title[data-path]').forEach(titleEl => {
+                const path = titleEl.dataset.path ?? '';
+                const fm = this.app.metadataCache.getCache(path)?.frontmatter;
+                const isPerson = fm?.type === 'person';
+                const existing = titleEl.querySelector('.pt-file-icon');
+                if (isPerson && !existing) {
+                    const icon = titleEl.createSpan({ cls: 'pt-file-icon', text: '👤' });
+                    titleEl.insertBefore(icon, titleEl.firstChild);
+                } else if (!isPerson && existing) {
+                    existing.remove();
+                }
+            });
+        }
+    }
 
     async loadSettings() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());

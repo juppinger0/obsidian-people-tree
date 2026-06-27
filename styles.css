@@ -677,6 +677,17 @@
 
 .ft-list-btn-danger:hover { opacity: 1 !important; }
 
+/* ── File Explorer person icon ──────────────────────────────────────────── */
+
+.pt-file-icon {
+    font-size: 0.8em;
+    margin-right: 4px;
+    opacity: 0.75;
+    vertical-align: middle;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
 /* ── Autocomplete dropdown ──────────────────────────────────────────────── */
 
 .ft-autocomplete {
