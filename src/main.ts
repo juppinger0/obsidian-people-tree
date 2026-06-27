@@ -1,4 +1,5 @@
-import { Plugin, PluginSettingTab, App, Setting, activeDocument } from 'obsidian';
+import { Plugin, PluginSettingTab, App, Setting } from 'obsidian';
+declare const activeDocument: Document;
 import { FamilyTreeView, VIEW_TYPE_FAMILY_TREE } from './FamilyTreeView';
 
 export interface PeopleTreeSettings {
@@ -100,7 +101,6 @@ export class PeopleTreePlugin extends Plugin {
         this.app.workspace.detachLeavesOfType(VIEW_TYPE_FAMILY_TREE);
         const leaf = this.app.workspace.getLeaf('tab');
         await leaf.setViewState({ type: VIEW_TYPE_FAMILY_TREE, active: true });
-        await this.app.workspace.revealLeaf(leaf);
     }
 }
 
@@ -112,7 +112,7 @@ class PeopleTreeSettingTab extends PluginSettingTab {
     display() {
         const { containerEl } = this;
         containerEl.empty();
-        new Setting(containerEl).setName('People Tree').setHeading();
+        new Setting(containerEl).setHeading();
 
         new Setting(containerEl)
             .setName('Photos folder')
