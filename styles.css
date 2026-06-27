@@ -108,6 +108,10 @@
     cursor: grab;
     position: relative;
 }
+.ft-viewport.ft-drop-active {
+    outline: 2px dashed var(--color-accent);
+    outline-offset: -4px;
+}
 
 .ft-canvas {
     position: absolute;

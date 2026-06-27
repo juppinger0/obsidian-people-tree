@@ -155,6 +155,71 @@ export class FamilyTreeView extends ItemView {
         if (this.selectedPerson) this.applySelection(this.selectedPerson);
         this.setupZoomPan(viewport, canvas);
         this.applyTransform(canvas);
+        this.setupDropTarget(viewport);
+    }
+
+    // ── Drag-from-explorer drop target ───────────────────────────────────
+
+    private setupDropTarget(viewport: HTMLElement) {
+        viewport.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            viewport.addClass('ft-drop-active');
+        });
+        viewport.addEventListener('dragleave', () => viewport.removeClass('ft-drop-active'));
+        viewport.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            viewport.removeClass('ft-drop-active');
+
+            // Resolve vault-relative path from drag data
+            let vaultPath: string | null = null;
+
+            // Obsidian sets text/plain to the vault-relative path when dragging from explorer
+            const plain = e.dataTransfer?.getData('text/plain')?.trim();
+            if (plain?.endsWith('.md') && this.app.vault.getAbstractFileByPath(plain)) {
+                vaultPath = plain;
+            }
+
+            // Electron fallback: File object has .path (absolute filesystem path)
+            if (!vaultPath && e.dataTransfer?.files?.length) {
+                const absPath = (e.dataTransfer.files[0] as any).path as string | undefined;
+                if (absPath) {
+                    const base = (this.app.vault.adapter as any).basePath as string | undefined;
+                    if (base) vaultPath = absPath.replace(base + '/', '').replace(base + '\\', '');
+                }
+            }
+
+            if (!vaultPath) return;
+            const tfile = this.app.vault.getAbstractFileByPath(vaultPath);
+            if (!(tfile instanceof TFile)) return;
+
+            const fm = this.app.metadataCache.getFileCache(vaultPath)?.frontmatter;
+            if (fm?.type === 'person' && !fm.hidden) return; // already on board
+
+            await this.app.fileManager.processFrontMatter(tfile, (f) => {
+                f.type = 'person';
+                delete f['hidden'];
+            });
+
+            this.injectPersonIcon(vaultPath);
+            await new Promise<void>(resolve => window.setTimeout(resolve, 300));
+            await this.render();
+        });
+    }
+
+    // Immediately injects the 👤 icon into the file-explorer DOM for a known path,
+    // without waiting for the metadata cache to update.
+    private injectPersonIcon(vaultPath: string) {
+        try {
+            for (const leaf of this.app.workspace.getLeavesOfType('file-explorer')) {
+                const container = (leaf.view as { containerEl?: HTMLElement }).containerEl;
+                if (!container) continue;
+                const titleEl = container.querySelector<HTMLElement>(`.nav-file-title[data-path="${CSS.escape(vaultPath)}"]`);
+                if (titleEl && !titleEl.querySelector('.pt-file-icon')) {
+                    const icon = titleEl.createSpan({ cls: 'pt-file-icon', text: '👤' });
+                    titleEl.insertBefore(icon, titleEl.firstChild);
+                }
+            }
+        } catch { /* DOM structure changed */ }
     }
 
     // ── Onboarding ────────────────────────────────────────────────────────
@@ -191,6 +256,7 @@ export class FamilyTreeView extends ItemView {
         }
         if (!this.app.vault.getAbstractFileByPath(filePath)) {
             await this.app.vault.create(filePath, `---\ntype: person\nname: ${base}\nborn: \ndied: \nparents: \nspouse: \nchildren: \n---\n`);
+            this.injectPersonIcon(filePath);
         }
 
         // Wait for metadataCache to index the new file before rendering —
