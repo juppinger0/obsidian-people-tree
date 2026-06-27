@@ -495,3 +495,39 @@
 .ft-avatar-uploadable:hover .ft-avatar-overlay {
     display: flex;
 }
+
+/* ── Avatar Upload Modal ───────────────────────────────────────────────── */
+
+.ft-modal-section {
+    margin-bottom: 16px;
+}
+
+.ft-modal-label {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    margin: 0 0 6px 0;
+}
+
+.ft-modal-btn {
+    margin-top: 6px;
+    padding: 4px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    cursor: pointer;
+    font-size: 0.85em;
+}
+
+.ft-modal-btn.mod-cta {
+    background: var(--color-accent);
+    color: #fff;
+    border-color: transparent;
+}
+
+.ft-modal-btn-danger {
+    color: var(--text-error);
+    border-color: var(--text-error);
+    display: block;
+    margin-top: 12px;
+}

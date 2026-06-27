@@ -1,4 +1,4 @@
-import { App, ItemView, TFile, WorkspaceLeaf } from 'obsidian';
+import { App, ItemView, Modal, TFile, WorkspaceLeaf } from 'obsidian';
 
 export const VIEW_TYPE_FAMILY_TREE = 'people-tree-view';
 
@@ -485,56 +485,37 @@ export class FamilyTreeView extends ItemView {
     // ── Avatar ────────────────────────────────────────────────────────────
 
     private renderAvatarCircle(parent: HTMLElement, person: Person, size: number, uploadable = false) {
-        // Use <label> when uploadable so the nested <input type=file> is triggered natively on click
-        const wrap = uploadable
-            ? parent.createEl('label', { cls: 'ft-avatar-wrap ft-avatar-uploadable', title: 'Foto hochladen' })
-            : parent.createDiv({ cls: 'ft-avatar-wrap' });
-        (wrap as HTMLElement).style.width = size + 'px';
-        (wrap as HTMLElement).style.height = size + 'px';
-        (wrap as HTMLElement).style.minWidth = size + 'px';
-
-        if (uploadable) {
-            const input = (wrap as HTMLElement).createEl('input', { type: 'file' }) as HTMLInputElement;
-            input.accept = 'image/*';
-            input.style.cssText = 'display:none;position:absolute;width:0;height:0';
-            input.addEventListener('change', async () => {
-                const file = input.files?.[0];
-                if (!file) return;
-                const buffer = await file.arrayBuffer();
-                const ext = (file.name.split('.').pop() ?? 'jpg').toLowerCase();
-                const folderPath = '02 Areas/Familie/Fotos';
-                const targetPath = `${folderPath}/${person.name}.${ext}`;
-                try {
-                    if (!this.app.vault.getAbstractFileByPath(folderPath)) {
-                        await this.app.vault.createFolder(folderPath);
-                    }
-                    const existing = this.app.vault.getAbstractFileByPath(targetPath);
-                    if (existing instanceof TFile) {
-                        await this.app.vault.modifyBinary(existing, buffer);
-                    } else {
-                        await this.app.vault.createBinary(targetPath, buffer);
-                    }
-                    await this.app.fileManager.processFrontMatter(person.file, (fm) => { fm.avatar = targetPath; });
-                    await this.render();
-                } catch (err) {
-                    console.error('[PeopleTree] Avatar-Upload:', err);
-                }
-            });
-        }
+        const wrap = parent.createDiv({ cls: 'ft-avatar-wrap' });
+        wrap.style.width = size + 'px';
+        wrap.style.height = size + 'px';
+        wrap.style.minWidth = size + 'px';
 
         if (person.avatar) {
             const f = this.app.vault.getAbstractFileByPath(person.avatar);
             if (f instanceof TFile) {
-                const img = (wrap as HTMLElement).createEl('img', { cls: 'ft-avatar' });
-                img.src = this.app.vault.getResourcePath(f);
-                if (uploadable) (wrap as HTMLElement).createDiv({ cls: 'ft-avatar-overlay', text: '📷' });
-                return;
+                wrap.createEl('img', { cls: 'ft-avatar' }).src = this.app.vault.getResourcePath(f);
+            } else {
+                const initials = person.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                wrap.createDiv({ cls: 'ft-avatar-initials', text: initials });
             }
+        } else {
+            const initials = person.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+            wrap.createDiv({ cls: 'ft-avatar-initials', text: initials });
         }
 
-        const initials = person.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
-        (wrap as HTMLElement).createDiv({ cls: 'ft-avatar-initials', text: initials });
-        if (uploadable) (wrap as HTMLElement).createDiv({ cls: 'ft-avatar-overlay', text: '📷' });
+        if (uploadable) {
+            const overlay = wrap.createDiv({ cls: 'ft-avatar-overlay', text: '📷' });
+            overlay.style.display = 'none';
+            wrap.addClass('ft-avatar-uploadable');
+            wrap.title = 'Foto hochladen';
+            wrap.addEventListener('mouseenter', () => { overlay.style.display = 'flex'; });
+            wrap.addEventListener('mouseleave', () => { overlay.style.display = 'none'; });
+            wrap.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                new AvatarUploadModal(this.app, person, () => this.render()).open();
+            });
+        }
     }
 
     // ── Detail fields ─────────────────────────────────────────────────────
@@ -685,6 +666,82 @@ export class FamilyTreeView extends ItemView {
         }
         svg.appendChild(el);
     }
+}
+
+// ── Avatar Upload Modal ───────────────────────────────────────────────────
+
+class AvatarUploadModal extends Modal {
+    constructor(private readonly obsApp: App, private readonly person: Person, private readonly onDone: () => void) {
+        super(obsApp);
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.createEl('h3', { text: `Foto für ${this.person.name}` });
+
+        // File upload from computer
+        const section1 = contentEl.createDiv({ cls: 'ft-modal-section' });
+        section1.createEl('p', { text: 'Vom Computer hochladen:', cls: 'ft-modal-label' });
+        const fileInput = section1.createEl('input', { type: 'file' }) as HTMLInputElement;
+        fileInput.accept = 'image/png,image/jpeg,image/gif,image/webp';
+        fileInput.style.display = 'block';
+        fileInput.style.marginBottom = '8px';
+        fileInput.addEventListener('change', async () => {
+            const file = fileInput.files?.[0];
+            if (!file) return;
+            await this.saveFile(await file.arrayBuffer(), file.name);
+        });
+
+        const uploadBtn = section1.createEl('button', { text: 'Datei wählen & hochladen', cls: 'ft-modal-btn mod-cta' });
+        uploadBtn.addEventListener('click', () => fileInput.click());
+
+        // Manual path input
+        const section2 = contentEl.createDiv({ cls: 'ft-modal-section' });
+        section2.createEl('p', { text: 'Oder Vault-Pfad (bereits im Vault):', cls: 'ft-modal-label' });
+        const pathInput = section2.createEl('input', { type: 'text', placeholder: '02 Areas/Familie/Fotos/name.jpg' }) as HTMLInputElement;
+        pathInput.style.width = '100%';
+        pathInput.value = this.person.avatar ?? '';
+        const savePathBtn = section2.createEl('button', { text: 'Pfad speichern', cls: 'ft-modal-btn' });
+        savePathBtn.addEventListener('click', async () => {
+            await this.obsApp.fileManager.processFrontMatter(this.person.file, (fm) => { fm.avatar = pathInput.value.trim() || null; });
+            this.close();
+            this.onDone();
+        });
+        pathInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') savePathBtn.click(); });
+
+        if (this.person.avatar) {
+            const clear = contentEl.createEl('button', { text: 'Foto entfernen', cls: 'ft-modal-btn ft-modal-btn-danger' });
+            clear.addEventListener('click', async () => {
+                await this.obsApp.fileManager.processFrontMatter(this.person.file, (fm) => { fm.avatar = null; });
+                this.close();
+                this.onDone();
+            });
+        }
+    }
+
+    private async saveFile(buffer: ArrayBuffer, filename: string) {
+        const ext = (filename.split('.').pop() ?? 'jpg').toLowerCase();
+        const folderPath = '02 Areas/Familie/Fotos';
+        const targetPath = `${folderPath}/${this.person.name}.${ext}`;
+        try {
+            if (!this.obsApp.vault.getAbstractFileByPath(folderPath)) {
+                await this.obsApp.vault.createFolder(folderPath);
+            }
+            const existing = this.obsApp.vault.getAbstractFileByPath(targetPath);
+            if (existing instanceof TFile) {
+                await this.obsApp.vault.modifyBinary(existing, buffer);
+            } else {
+                await this.obsApp.vault.createBinary(targetPath, buffer);
+            }
+            await this.obsApp.fileManager.processFrontMatter(this.person.file, (fm) => { fm.avatar = targetPath; });
+            this.close();
+            this.onDone();
+        } catch (err) {
+            console.error('[PeopleTree] Avatar-Upload:', err);
+        }
+    }
+
+    onClose() { this.contentEl.empty(); }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
