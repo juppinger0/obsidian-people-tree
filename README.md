@@ -21,10 +21,18 @@ An interactive family tree, org chart and timeline viewer for [Obsidian](https:/
 
 ## Installation
 
-### Community Plugin Store *(coming soon)*
+### Option 1 — Let an AI assistant do it for you *(recommended)*
+
+Just ask Claude, Claude Code, or any AI with file-system access:
+
+> *"Install the People Tree plugin into my Obsidian vault at `<path to your vault>`."*
+
+The assistant will copy `main.js`, `manifest.json` and `styles.css` into `.obsidian/plugins/people-tree/` and enable the plugin automatically. No manual steps needed.
+
+### Option 2 — Community Plugin Store *(coming soon)*
 Search for **"People Tree"** in Obsidian → Settings → Community plugins.
 
-### Manual
+### Option 3 — Manual
 1. Download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/juppinger0/obsidian-people-tree/releases).
 2. Copy all three files into your vault under `.obsidian/plugins/people-tree/`.
 3. In Obsidian: **Settings → Community plugins → enable "People Tree"**.
