@@ -35,21 +35,25 @@ export default class PeopleTreePlugin extends Plugin {
     }
 
     private updateFileIcons() {
-        for (const leaf of this.app.workspace.getLeavesOfType('file-explorer')) {
-            const container = (leaf.view as { containerEl?: HTMLElement }).containerEl;
-            if (!container) continue;
-            container.querySelectorAll<HTMLElement>('.nav-file-title[data-path]').forEach(titleEl => {
-                const path = titleEl.dataset.path ?? '';
-                const fm = this.app.metadataCache.getCache(path)?.frontmatter;
-                const isPerson = fm?.type === 'person';
-                const existing = titleEl.querySelector('.pt-file-icon');
-                if (isPerson && !existing) {
-                    const icon = titleEl.createSpan({ cls: 'pt-file-icon', text: '👤' });
-                    titleEl.insertBefore(icon, titleEl.firstChild);
-                } else if (!isPerson && existing) {
-                    existing.remove();
-                }
-            });
+        try {
+            for (const leaf of this.app.workspace.getLeavesOfType('file-explorer')) {
+                const container = (leaf.view as { containerEl?: HTMLElement }).containerEl;
+                if (!container) continue;
+                container.querySelectorAll<HTMLElement>('.nav-file-title[data-path]').forEach(titleEl => {
+                    const path = titleEl.dataset.path ?? '';
+                    const fm = this.app.metadataCache.getCache(path)?.frontmatter;
+                    const isPerson = fm?.type === 'person';
+                    const existing = titleEl.querySelector('.pt-file-icon');
+                    if (isPerson && !existing) {
+                        const icon = titleEl.createSpan({ cls: 'pt-file-icon', text: '👤' });
+                        titleEl.insertBefore(icon, titleEl.firstChild);
+                    } else if (!isPerson && existing) {
+                        existing.remove();
+                    }
+                });
+            }
+        } catch {
+            // file-explorer DOM structure changed — icons silently disabled
         }
     }
 
