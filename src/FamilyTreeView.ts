@@ -5,7 +5,7 @@ export const VIEW_TYPE_FAMILY_TREE = 'people-tree-view';
 
 type ViewMode = 'tree' | 'orgchart' | 'timeline' | 'list';
 
-const NODE_W = 190;
+const NODE_W = 220;
 const NODE_H = 72;
 const H_GAP = 60;
 const V_GAP = 110;
@@ -354,10 +354,10 @@ export class FamilyTreeView extends ItemView {
     private renderToolbar(tb: HTMLElement) {
         const modeGroup = tb.createDiv({ cls: 'ft-mode-group' });
         const modes: { id: ViewMode; emoji: string; label: string }[] = [
-            { id: 'tree',      emoji: '🌳', label: 'Stammbaum' },
-            { id: 'orgchart',  emoji: '🏢', label: 'Org-Chart' },
-            { id: 'timeline',  emoji: '📅', label: 'Zeitstrahl' },
-            { id: 'list',      emoji: '📋', label: 'Liste' },
+            { id: 'tree',      emoji: '🌳', label: 'Tree' },
+            { id: 'orgchart',  emoji: '🏢', label: 'Org Chart' },
+            { id: 'timeline',  emoji: '📅', label: 'Timeline' },
+            { id: 'list',      emoji: '📋', label: 'List' },
         ];
         for (const m of modes) {
             const b = modeGroup.createEl('button', { cls: 'ft-mode-btn', title: m.label });
@@ -377,23 +377,23 @@ export class FamilyTreeView extends ItemView {
                 const b = zoomGroup.createEl('button', { text: t, cls: 'ft-tb-btn', title });
                 b.addEventListener('click', fn);
             };
-            z('+', 'Hineinzoomen', () => { this.zoom = Math.min(this.zoom * 1.2, 4); this.applyTransform(this.getCanvas()); });
-            z('−', 'Herauszoomen', () => { this.zoom = Math.max(this.zoom / 1.2, 0.15); this.applyTransform(this.getCanvas()); });
-            z('⌂', 'Zurücksetzen', () => { this.zoom = 1; this.panX = 0; this.panY = 0; this.applyTransform(this.getCanvas()); });
+            z('+', 'Zoom in', () => { this.zoom = Math.min(this.zoom * 1.2, 4); this.applyTransform(this.getCanvas()); });
+            z('−', 'Zoom out', () => { this.zoom = Math.max(this.zoom / 1.2, 0.15); this.applyTransform(this.getCanvas()); });
+            z('⌂', 'Reset view', () => { this.zoom = 1; this.panX = 0; this.panY = 0; this.applyTransform(this.getCanvas()); });
 
             const exportBtn = tb.createEl('button', { cls: 'ft-export-btn', title: 'Als PNG herunterladen' });
             exportBtn.createSpan({ text: '⬇ PNG' });
             exportBtn.addEventListener('click', () => this.exportPng());
 
             if (this.viewMode === 'tree' || this.viewMode === 'orgchart') {
-                const resetBtn = tb.createEl('button', { cls: 'ft-tb-btn', title: 'Manuelles Layout zurücksetzen — kehrt zur Auto-Anordnung zurück', text: '↺' });
+                const resetBtn = tb.createEl('button', { cls: 'ft-tb-btn', title: 'Reset manual positions — return to auto layout', text: '↺' });
                 resetBtn.addEventListener('click', async () => { await this.plugin.clearPositions(); await this.render(); });
             }
             if (this.viewMode === 'timeline') {
                 const dirBtn = tb.createEl('button', {
                     cls: 'ft-tb-btn ft-tl-dir-btn',
-                    title: this.timelineDir === 'h' ? 'Auf vertikalen Zeitstrahl wechseln' : 'Auf horizontalen Zeitstrahl wechseln',
-                    text: this.timelineDir === 'h' ? '⇕ Vertikal' : '⇔ Horizontal',
+                    title: this.timelineDir === 'h' ? 'Switch to vertical timeline' : 'Switch to horizontal timeline',
+                    text: this.timelineDir === 'h' ? '⇕ Vertical' : '⇔ Horizontal',
                 });
                 dirBtn.addEventListener('click', () => {
                     this.timelineDir = this.timelineDir === 'h' ? 'v' : 'h';
@@ -408,8 +408,8 @@ export class FamilyTreeView extends ItemView {
         }
 
         const hint = this.viewMode !== 'list'
-            ? 'Mausrad: Zoom  ·  Drag: Pan  ·  Klick: Auswahl  ·  ▼: Details'
-            : `${this.persons.size} Personen`;
+            ? 'Scroll: Zoom  ·  Drag: Pan  ·  Click: Select  ·  ▼: Details'
+            : `${this.persons.size} person${this.persons.size === 1 ? '' : 's'}`;
         tb.createEl('span', { cls: 'ft-tb-hint', text: hint });
     }
 
@@ -523,7 +523,7 @@ export class FamilyTreeView extends ItemView {
     private renderTimeline(canvas: HTMLElement, svg: SVGElement, byGen: Map<number, Person[]>, viewport: HTMLElement) {
         const years = [...this.persons.values()].map(p => extractYear(p.born)).filter((y): y is number => y !== null);
         if (years.length < 2) {
-            canvas.createEl('p', { text: 'Zu wenige Geburtsdaten für Zeitstrahl. Bitte born-Felder ergänzen.', cls: 'ft-empty' });
+            canvas.createEl('p', { text: 'Not enough birth dates for timeline. Please add born fields to at least 2 persons.', cls: 'ft-empty' });
             return;
         }
 
@@ -739,11 +739,11 @@ export class FamilyTreeView extends ItemView {
         const cols: { label: string; field: string | null }[] = [
             { label: '', field: null },
             { label: 'Name', field: 'name' },
-            { label: 'Geburt', field: 'born' },
-            { label: 'Tod', field: 'died' },
-            { label: 'Eltern', field: 'parents' },
-            { label: 'Ehepartner', field: 'spouse' },
-            { label: 'Kinder', field: 'children' },
+            { label: 'Born', field: 'born' },
+            { label: 'Died', field: 'died' },
+            { label: 'Parents', field: 'parents' },
+            { label: 'Spouse', field: 'spouse' },
+            { label: 'Children', field: 'children' },
             { label: '', field: null },
         ];
 
@@ -804,13 +804,13 @@ export class FamilyTreeView extends ItemView {
 
             // Actions
             const actCell = row.createEl('td', { cls: 'ft-list-actions' });
-            actCell.createEl('button', { text: '↗', cls: 'ft-list-btn', title: 'Notiz öffnen' })
+            actCell.createEl('button', { text: '↗', cls: 'ft-list-btn', title: 'Open note' })
                 .addEventListener('click', () => this.app.workspace.openLinkText(person.file.path, ''));
-            actCell.createEl('button', { text: '📷', cls: 'ft-list-btn', title: 'Foto hochladen/ändern' })
+            actCell.createEl('button', { text: '📷', cls: 'ft-list-btn', title: 'Upload / change photo' })
                 .addEventListener('click', () => new AvatarUploadModal(this.app, person, this.settings.photosFolder, () => this.render()).open());
-            actCell.createEl('button', { text: '⊖', cls: 'ft-list-btn', title: 'Aus Baum entfernen (Notiz bleibt)' })
+            actCell.createEl('button', { text: '⊖', cls: 'ft-list-btn', title: 'Remove from tree (note stays)' })
                 .addEventListener('click', () => this.removeFromTree(person));
-            actCell.createEl('button', { text: '🗑', cls: 'ft-list-btn ft-list-btn-danger', title: 'Notiz dauerhaft löschen' })
+            actCell.createEl('button', { text: '🗑', cls: 'ft-list-btn ft-list-btn-danger', title: 'Delete note permanently' })
                 .addEventListener('click', () => this.deletePerson(person));
 
             // Inline editing on cell click
@@ -818,7 +818,7 @@ export class FamilyTreeView extends ItemView {
                 const cell = row.cells[i + 2] as HTMLTableCellElement;
                 const isArr = field === 'parents' || field === 'children';
                 const rawVal = isArr ? (person[field as 'parents' | 'children'] as string[]).join(', ') : (person[field as 'born' | 'died' | 'spouse'] as string);
-                cell.title = 'Klick zum Bearbeiten';
+                cell.title = 'Click to edit';
                 cell.addEventListener('click', () => {
                     if (cell.querySelector('input')) return;
                     const personFields = ['parents', 'children', 'spouse'];
@@ -857,7 +857,7 @@ export class FamilyTreeView extends ItemView {
         this.makeEditable(datesEl, person, 'born', person.born, (v) => formatDates(v, person.died));
 
         const btns = header.createDiv({ cls: 'ft-node-btns' });
-        const openBtn = btns.createEl('button', { cls: 'ft-icon-btn', title: 'Notiz öffnen', text: '↗' });
+        const openBtn = btns.createEl('button', { cls: 'ft-icon-btn', title: 'Open note', text: '↗' });
         openBtn.addEventListener('click', (e) => { e.stopPropagation(); this.app.workspace.openLinkText(person.file.path, ''); });
         const isExp = this.expandedPersons.has(person.name);
         const expandBtn = btns.createEl('button', { cls: 'ft-icon-btn', title: 'Details', text: isExp ? '▲' : '▼' });
@@ -869,18 +869,17 @@ export class FamilyTreeView extends ItemView {
         });
 
         const detail = node.createDiv({ cls: 'ft-detail' });
-        this.detailField(detail, person, 'Geburtsdatum', 'born', person.born, false);
-        this.detailField(detail, person, 'Sterbedatum', 'died', person.died, false);
-        this.detailField(detail, person, 'Ehepartner', 'spouse', person.spouse, false);
-        this.detailFieldWithAdd(detail, person, 'Eltern', 'parents', person.parents.join(', '), 'parent');
-        this.detailFieldWithAdd(detail, person, 'Kinder', 'children', person.children.join(', '), 'child');
-        // Avatar-Zeile mit 📷-Button
+        this.detailField(detail, person, 'Born', 'born', person.born, false);
+        this.detailField(detail, person, 'Died', 'died', person.died, false);
+        this.detailField(detail, person, 'Spouse', 'spouse', person.spouse, false);
+        this.detailFieldWithAdd(detail, person, 'Parents', 'parents', person.parents.join(', '), 'parent');
+        this.detailFieldWithAdd(detail, person, 'Children', 'children', person.children.join(', '), 'child');
         const avatarRow = detail.createDiv({ cls: 'ft-detail-row' });
-        avatarRow.createEl('span', { cls: 'ft-label', text: 'Foto' });
+        avatarRow.createEl('span', { cls: 'ft-label', text: 'Photo' });
         const avatarVal = avatarRow.createEl('span', { cls: 'ft-val', text: person.avatar || '—' });
-        avatarVal.title = 'Klick zum Bearbeiten (Vault-Pfad)';
+        avatarVal.title = 'Click to edit (vault path)';
         avatarVal.addEventListener('click', (e) => { e.stopPropagation(); this.inlineEdit(avatarVal, person, 'avatar', person.avatar, false); });
-        avatarRow.createEl('button', { cls: 'ft-icon-btn', text: '📷', title: 'Foto hochladen' })
+        avatarRow.createEl('button', { cls: 'ft-icon-btn', text: '📷', title: 'Upload photo' })
             .addEventListener('click', (e) => { e.stopPropagation(); new AvatarUploadModal(this.app, person, this.settings.photosFolder, () => this.render()).open(); });
 
         for (const [key, val] of Object.entries(person.extra)) {
@@ -889,13 +888,13 @@ export class FamilyTreeView extends ItemView {
         }
 
         const addRow = detail.createDiv({ cls: 'ft-add-row' });
-        const addBtn = addRow.createEl('button', { cls: 'ft-add-btn', text: '+ Feld hinzufügen' });
+        const addBtn = addRow.createEl('button', { cls: 'ft-add-btn', text: '+ Add field' });
         addBtn.addEventListener('click', (e) => { e.stopPropagation(); this.showAddField(addRow, person, addBtn); });
 
         const actionRow = detail.createDiv({ cls: 'ft-person-actions' });
-        const removeBtn = actionRow.createEl('button', { cls: 'ft-remove-person-btn', text: '⊖ Aus Baum entfernen', title: 'Notiz bleibt erhalten, nur type: person wird entfernt' });
+        const removeBtn = actionRow.createEl('button', { cls: 'ft-remove-person-btn', text: '⊖ Remove from tree', title: 'Note stays in vault, only hidden from this view' });
         removeBtn.addEventListener('click', (e) => { e.stopPropagation(); this.removeFromTree(person); });
-        const deleteBtn = actionRow.createEl('button', { cls: 'ft-delete-person-btn', text: '🗑 Notiz löschen', title: 'Notiz dauerhaft aus dem Vault löschen' });
+        const deleteBtn = actionRow.createEl('button', { cls: 'ft-delete-person-btn', text: '🗑 Delete note', title: 'Permanently delete note from vault' });
         deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); this.deletePerson(person); });
 
         node.addEventListener('click', (e) => {
@@ -969,7 +968,7 @@ export class FamilyTreeView extends ItemView {
         const row = parent.createDiv({ cls: 'ft-detail-row' });
         row.createEl('span', { cls: 'ft-label', text: label });
         const val = row.createEl('span', { cls: 'ft-val', text: value || '—' });
-        val.title = 'Klick zum Bearbeiten';
+        val.title = 'Click to edit';
         val.addEventListener('click', (e) => { e.stopPropagation(); this.inlineEdit(val, person, field, value, isArray); });
     }
 
@@ -977,9 +976,9 @@ export class FamilyTreeView extends ItemView {
         const row = parent.createDiv({ cls: 'ft-detail-row' });
         row.createEl('span', { cls: 'ft-label', text: label });
         const val = row.createEl('span', { cls: 'ft-val', text: value || '—' });
-        val.title = 'Klick zum Bearbeiten';
+        val.title = 'Click to edit';
         val.addEventListener('click', (e) => { e.stopPropagation(); this.inlineEdit(val, person, field, value, true); });
-        const addBtn = row.createEl('button', { cls: 'ft-icon-btn', text: '+', title: `${label.slice(0, -1)} hinzufügen` });
+        const addBtn = row.createEl('button', { cls: 'ft-icon-btn', text: '+', title: `Add ${label.toLowerCase().replace(/s$/, '')}` });
         addBtn.addEventListener('click', (e) => { e.stopPropagation(); new AddPersonModal(this.app, relation, person, this.settings.personFolder, () => this.render(), this.persons).open(); });
     }
 
@@ -987,13 +986,13 @@ export class FamilyTreeView extends ItemView {
         const confirmed = await new Promise<boolean>(resolve => {
             const modal = new (class extends Modal {
                 onOpen() {
-                    this.contentEl.createEl('h3', { text: `"${person.name}" aus dem Baum entfernen?` });
-                    this.contentEl.createEl('p', { text: 'Die Notiz bleibt unverändert im Vault — sie wird nur aus dieser Ansicht ausgeblendet.' });
-                    this.contentEl.createEl('p', { cls: 'ft-modal-hint', text: '💡 Über "+ Person" kann die Person jederzeit wieder eingeblendet werden.' });
+                    this.contentEl.createEl('h3', { text: `Remove "${person.name}" from tree?` });
+                    this.contentEl.createEl('p', { text: 'The note stays in your vault — it will only be hidden from this view.' });
+                    this.contentEl.createEl('p', { cls: 'ft-modal-hint', text: '💡 You can re-add the person at any time via "+ Person".' });
                     const footer = this.contentEl.createDiv({ cls: 'ft-modal-footer' });
-                    footer.createEl('button', { text: 'Abbrechen', cls: 'ft-modal-btn' })
+                    footer.createEl('button', { text: 'Cancel', cls: 'ft-modal-btn' })
                         .addEventListener('click', () => { this.close(); resolve(false); });
-                    const btn = footer.createEl('button', { text: 'Entfernen', cls: 'ft-modal-btn' });
+                    const btn = footer.createEl('button', { text: 'Remove', cls: 'ft-modal-btn' });
                     btn.style.marginLeft = '8px';
                     btn.addEventListener('click', () => { this.close(); resolve(true); });
                 }
@@ -1010,13 +1009,13 @@ export class FamilyTreeView extends ItemView {
         const confirmed = await new Promise<boolean>(resolve => {
             const modal = new (class extends Modal {
                 onOpen() {
-                    this.contentEl.createEl('h3', { text: 'Notiz dauerhaft löschen?' });
-                    this.contentEl.createEl('p', { text: `Die Notiz "${person.name}" wird unwiderruflich aus dem Vault gelöscht. Verweise in anderen Notizen werden nicht bereinigt.` });
-                    this.contentEl.createEl('p', { cls: 'ft-modal-hint', text: '💡 Tipp: "Aus Baum entfernen" behält die Notiz — du kannst sie über "+ Person" wieder einblenden.' });
+                    this.contentEl.createEl('h3', { text: 'Delete note permanently?' });
+                    this.contentEl.createEl('p', { text: `"${person.name}" will be permanently removed from your vault. Links in other notes will not be cleaned up.` });
+                    this.contentEl.createEl('p', { cls: 'ft-modal-hint', text: '💡 Tip: "Remove from tree" keeps the note — you can re-add it later via "+ Person".' });
                     const footer = this.contentEl.createDiv({ cls: 'ft-modal-footer' });
-                    footer.createEl('button', { text: 'Abbrechen', cls: 'ft-modal-btn' })
+                    footer.createEl('button', { text: 'Cancel', cls: 'ft-modal-btn' })
                         .addEventListener('click', () => { this.close(); resolve(false); });
-                    const del = footer.createEl('button', { text: 'Löschen', cls: 'ft-modal-btn ft-modal-btn-danger' });
+                    const del = footer.createEl('button', { text: 'Delete', cls: 'ft-modal-btn ft-modal-btn-danger' });
                     del.style.marginLeft = '8px';
                     del.addEventListener('click', () => { this.close(); resolve(true); });
                 }

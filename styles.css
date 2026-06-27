@@ -204,6 +204,8 @@
     color: var(--text-muted);
     margin-top: 2px;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .ft-dates:hover { color: var(--text-normal); }
