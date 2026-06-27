@@ -387,9 +387,9 @@ export class FamilyTreeView extends ItemView {
         for (const person of persons) {
             const row = this.listTbody.createEl('tr', { cls: 'ft-list-row' });
 
-            // Avatar (klickbar für Upload)
+            // Avatar
             const avatarCell = row.createEl('td', { cls: 'ft-list-avatar-cell' });
-            this.renderAvatarCircle(avatarCell, person, 32, true);
+            this.renderAvatarCircle(avatarCell, person, 32);
 
             // Name
             row.createEl('td', { cls: 'ft-list-name', text: person.name });
@@ -405,6 +405,8 @@ export class FamilyTreeView extends ItemView {
             const actCell = row.createEl('td', { cls: 'ft-list-actions' });
             actCell.createEl('button', { text: '↗', cls: 'ft-list-btn', title: 'Notiz öffnen' })
                 .addEventListener('click', () => this.app.workspace.openLinkText(person.file.path, ''));
+            actCell.createEl('button', { text: '📷', cls: 'ft-list-btn', title: 'Foto hochladen/ändern' })
+                .addEventListener('click', () => new AvatarUploadModal(this.app, person, () => this.render()).open());
 
             // Inline editing on cell click
             for (const [i, field] of ['born', 'died', 'parents', 'spouse', 'children'].entries()) {
@@ -484,7 +486,7 @@ export class FamilyTreeView extends ItemView {
 
     // ── Avatar ────────────────────────────────────────────────────────────
 
-    private renderAvatarCircle(parent: HTMLElement, person: Person, size: number, uploadable = false) {
+    private renderAvatarCircle(parent: HTMLElement, person: Person, size: number) {
         const wrap = parent.createDiv({ cls: 'ft-avatar-wrap' });
         wrap.style.width = size + 'px';
         wrap.style.height = size + 'px';
@@ -494,28 +496,11 @@ export class FamilyTreeView extends ItemView {
             const f = this.app.vault.getAbstractFileByPath(person.avatar);
             if (f instanceof TFile) {
                 wrap.createEl('img', { cls: 'ft-avatar' }).src = this.app.vault.getResourcePath(f);
-            } else {
-                const initials = person.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
-                wrap.createDiv({ cls: 'ft-avatar-initials', text: initials });
+                return;
             }
-        } else {
-            const initials = person.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
-            wrap.createDiv({ cls: 'ft-avatar-initials', text: initials });
         }
-
-        if (uploadable) {
-            const overlay = wrap.createDiv({ cls: 'ft-avatar-overlay', text: '📷' });
-            overlay.style.display = 'none';
-            wrap.addClass('ft-avatar-uploadable');
-            wrap.title = 'Foto hochladen';
-            wrap.addEventListener('mouseenter', () => { overlay.style.display = 'flex'; });
-            wrap.addEventListener('mouseleave', () => { overlay.style.display = 'none'; });
-            wrap.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                new AvatarUploadModal(this.app, person, () => this.render()).open();
-            });
-        }
+        const initials = person.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+        wrap.createDiv({ cls: 'ft-avatar-initials', text: initials });
     }
 
     // ── Detail fields ─────────────────────────────────────────────────────
