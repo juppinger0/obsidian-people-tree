@@ -532,19 +532,21 @@
     margin-top: 12px;
 }
 
-.ft-file-label {
-    display: inline-block;
-    position: relative;
-    padding: 6px 14px;
-    border-radius: 6px;
-    border: 1px solid var(--color-accent);
-    background: var(--color-accent);
-    color: #fff;
-    font-size: 0.85em;
-    cursor: pointer;
-    margin-top: 4px;
+.ft-drop-zone {
+    border: 2px dashed var(--background-modifier-border);
+    border-radius: 10px;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: default;
+    transition: border-color 0.15s, background 0.15s;
+    margin-bottom: 14px;
 }
 
-.ft-file-label:hover {
-    opacity: 0.88;
+.ft-drop-zone.ft-drag-over {
+    border-color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 8%, transparent);
 }
+
+.ft-drop-icon { font-size: 2em; margin-bottom: 6px; }
+.ft-drop-label { font-size: 0.9em; color: var(--text-normal); font-weight: 500; }
+.ft-drop-sub { font-size: 0.75em; color: var(--text-faint); margin-top: 3px; }

@@ -664,32 +664,43 @@ class AvatarUploadModal extends Modal {
         const { contentEl } = this;
         contentEl.createEl('h3', { text: `Photo for ${this.person.name}` });
 
-        // Direct file input — must be a real user gesture on the input itself, no JS .click() wrapper
-        const section1 = contentEl.createDiv({ cls: 'ft-modal-section' });
-        section1.createEl('p', { text: 'Upload from your computer:', cls: 'ft-modal-label' });
-        const fileLabel = section1.createEl('label', { cls: 'ft-file-label' });
-        fileLabel.textContent = '📁 Choose image file…';
-        const fileInput = fileLabel.createEl('input', { type: 'file' }) as HTMLInputElement;
-        fileInput.accept = 'image/png,image/jpeg,image/gif,image/webp';
-        fileInput.style.cssText = 'position:absolute;opacity:0;width:0;height:0';
-        fileInput.addEventListener('change', async () => {
-            const file = fileInput.files?.[0];
-            if (!file) return;
-            fileLabel.textContent = `⏳ ${file.name}…`;
+        // ── Option A: drag & drop zone ──────────────────────────────────
+        const dropZone = contentEl.createDiv({ cls: 'ft-drop-zone' });
+        dropZone.createDiv({ cls: 'ft-drop-icon', text: '🖼️' });
+        const dropLabel = dropZone.createDiv({ cls: 'ft-drop-label', text: 'Drag & drop image here' });
+        dropZone.createDiv({ cls: 'ft-drop-sub', text: 'JPG, PNG, GIF, WEBP' });
+
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.addClass('ft-drag-over'); });
+        dropZone.addEventListener('dragleave', () => dropZone.removeClass('ft-drag-over'));
+        dropZone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            dropZone.removeClass('ft-drag-over');
+            const file = e.dataTransfer?.files[0];
+            if (!file || !file.type.startsWith('image/')) return;
+            dropLabel.textContent = `⏳ ${file.name}…`;
             await this.saveFile(await file.arrayBuffer(), file.name);
         });
 
-        // Vault path input
-        const section2 = contentEl.createDiv({ cls: 'ft-modal-section' });
-        section2.createEl('p', { text: 'Or enter a vault-relative path (already in vault):', cls: 'ft-modal-label' });
-        const pathInput = section2.createEl('input', { type: 'text', placeholder: '02 Areas/Familie/Fotos/name.jpg' }) as HTMLInputElement;
-        pathInput.style.width = '100%';
+        // ── Option B: native file input, visible, user clicks it directly ──
+        contentEl.createEl('p', { text: 'Or pick a file:', cls: 'ft-modal-label' });
+        const fileInput = contentEl.createEl('input', { type: 'file' }) as HTMLInputElement;
+        fileInput.accept = 'image/*';
+        fileInput.style.cssText = 'display:block;margin:4px 0 12px;font-size:0.85em;width:100%';
+        fileInput.addEventListener('change', async () => {
+            const file = fileInput.files?.[0];
+            if (!file) return;
+            await this.saveFile(await file.arrayBuffer(), file.name);
+        });
+
+        // ── Option C: vault path ────────────────────────────────────────
+        contentEl.createEl('p', { text: 'Or paste a vault-relative path (file already in vault):', cls: 'ft-modal-label' });
+        const pathInput = contentEl.createEl('input', { type: 'text', placeholder: '02 Areas/Familie/Fotos/name.jpg' }) as HTMLInputElement;
+        pathInput.style.cssText = 'display:block;width:100%;margin-bottom:6px';
         pathInput.value = this.person.avatar ?? '';
-        const savePathBtn = section2.createEl('button', { text: 'Save path', cls: 'ft-modal-btn' });
+        const savePathBtn = contentEl.createEl('button', { text: 'Save path', cls: 'ft-modal-btn' });
         savePathBtn.addEventListener('click', async () => {
             await this.obsApp.fileManager.processFrontMatter(this.person.file, (fm) => { fm.avatar = pathInput.value.trim() || null; });
-            this.close();
-            this.onDone();
+            this.close(); this.onDone();
         });
         pathInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') savePathBtn.click(); });
 
@@ -697,8 +708,7 @@ class AvatarUploadModal extends Modal {
             const clear = contentEl.createEl('button', { text: 'Remove photo', cls: 'ft-modal-btn ft-modal-btn-danger' });
             clear.addEventListener('click', async () => {
                 await this.obsApp.fileManager.processFrontMatter(this.person.file, (fm) => { fm.avatar = null; });
-                this.close();
-                this.onDone();
+                this.close(); this.onDone();
             });
         }
     }
