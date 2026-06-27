@@ -646,25 +646,52 @@
     background: color-mix(in srgb, var(--color-accent) 22%, var(--background-primary));
 }
 
-/* ── Delete person button (detail panel) ────────────────────────────────── */
+/* ── Person action buttons (detail panel) ───────────────────────────────── */
 
-.ft-delete-person-btn {
+.ft-person-actions {
+    display: flex;
+    gap: 6px;
     margin-top: 8px;
-    width: 100%;
+}
+
+.ft-remove-person-btn,
+.ft-delete-person-btn {
+    flex: 1;
     padding: 4px 0;
-    border: 1px solid var(--text-error);
     border-radius: 5px;
     background: transparent;
-    color: var(--text-error);
-    font-size: 0.74em;
+    font-size: 0.72em;
     cursor: pointer;
-    opacity: 0.5;
+    opacity: 0.55;
     transition: opacity 0.1s, background 0.1s;
+    white-space: nowrap;
+}
+
+.ft-remove-person-btn {
+    border: 1px solid var(--text-muted);
+    color: var(--text-muted);
+}
+
+.ft-remove-person-btn:hover {
+    opacity: 1;
+    border-color: var(--text-normal);
+    color: var(--text-normal);
+}
+
+.ft-delete-person-btn {
+    border: 1px solid var(--text-error);
+    color: var(--text-error);
 }
 
 .ft-delete-person-btn:hover {
     opacity: 1;
     background: color-mix(in srgb, var(--text-error) 8%, transparent);
+}
+
+.ft-modal-hint {
+    font-size: 0.82em;
+    color: var(--text-muted);
+    margin-top: 8px;
 }
 
 /* ── Delete button in list mode ─────────────────────────────────────────── */

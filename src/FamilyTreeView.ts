@@ -163,12 +163,13 @@ export class FamilyTreeView extends ItemView {
         const card = root.createDiv({ cls: 'ft-onboarding' });
         card.createDiv({ cls: 'ft-onboarding-icon', text: '👥' });
         card.createEl('h2', { cls: 'ft-onboarding-title', text: 'Welcome to People Tree' });
-        card.createEl('p', { cls: 'ft-onboarding-desc', text: 'No person notes found yet. Create Markdown notes with type: person in the frontmatter — People Tree picks them up automatically.' });
+        card.createEl('p', { cls: 'ft-onboarding-desc', text: 'People Tree visualises people as an interactive tree, org chart or timeline — all data lives in your vault as plain Markdown notes.' });
 
-        const steps = card.createEl('ol', { cls: 'ft-onboarding-steps' });
-        steps.createEl('li', { text: 'Click the button below to create your first person note.' });
-        steps.createEl('li', { text: 'Fill in name, born, parents, children as needed.' });
-        steps.createEl('li', { text: 'The tree updates automatically.' });
+        const steps = card.createEl('ul', { cls: 'ft-onboarding-steps' });
+        steps.createEl('li', { text: 'Every note with type: person in its frontmatter becomes a card in the tree.' });
+        steps.createEl('li', { text: 'Link people via parents, children and spouse fields.' });
+        steps.createEl('li', { text: 'Edit names, dates and any custom field directly in the view — changes go straight to the note.' });
+        steps.createEl('li', { text: 'Use + Person in the toolbar to add more people at any time.' });
         if (this.settings.personFolder) {
             card.createEl('p', { cls: 'ft-onboarding-hint', text: `Scanning folder: ${this.settings.personFolder}` });
         }
@@ -180,14 +181,21 @@ export class FamilyTreeView extends ItemView {
     private async createPersonNote() {
         const folder = this.settings.personFolder?.trim() || '';
         const base = 'New Person';
-        let path = folder ? `${folder}/${base}.md` : `${base}.md`;
+        const path = folder ? `${folder}/${base}.md` : `${base}.md`;
         if (folder && !this.app.vault.getAbstractFileByPath(folder)) {
             await this.app.vault.createFolder(folder);
         }
         if (!this.app.vault.getAbstractFileByPath(path)) {
             await this.app.vault.create(path, `---\ntype: person\nname: ${base}\nborn: \ndied: \nparents: \nspouse: \nchildren: \n---\n`);
         }
-        await this.app.workspace.openLinkText(path, '');
+        // Direkt in Tree-Ansicht zeigen, Karte aufklappen, Name-Feld fokussieren
+        this.viewMode = 'tree';
+        this.expandedPersons.add(base);
+        await this.render();
+        setTimeout(() => {
+            const nameEl = this.getCanvas()?.querySelector<HTMLElement>(`[data-person="${base}"] .ft-name`);
+            nameEl?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+        }, 60);
     }
 
     // ── Toolbar ───────────────────────────────────────────────────────────
@@ -487,7 +495,9 @@ export class FamilyTreeView extends ItemView {
                 .addEventListener('click', () => this.app.workspace.openLinkText(person.file.path, ''));
             actCell.createEl('button', { text: '📷', cls: 'ft-list-btn', title: 'Foto hochladen/ändern' })
                 .addEventListener('click', () => new AvatarUploadModal(this.app, person, this.settings.photosFolder, () => this.render()).open());
-            actCell.createEl('button', { text: '🗑', cls: 'ft-list-btn ft-list-btn-danger', title: 'Person löschen' })
+            actCell.createEl('button', { text: '⊖', cls: 'ft-list-btn', title: 'Aus Baum entfernen (Notiz bleibt)' })
+                .addEventListener('click', () => this.removeFromTree(person));
+            actCell.createEl('button', { text: '🗑', cls: 'ft-list-btn ft-list-btn-danger', title: 'Notiz dauerhaft löschen' })
                 .addEventListener('click', () => this.deletePerson(person));
 
             // Inline editing on cell click
@@ -568,7 +578,10 @@ export class FamilyTreeView extends ItemView {
         const addBtn = addRow.createEl('button', { cls: 'ft-add-btn', text: '+ Feld hinzufügen' });
         addBtn.addEventListener('click', (e) => { e.stopPropagation(); this.showAddField(addRow, person, addBtn); });
 
-        const deleteBtn = detail.createEl('button', { cls: 'ft-delete-person-btn', text: '🗑 Person löschen' });
+        const actionRow = detail.createDiv({ cls: 'ft-person-actions' });
+        const removeBtn = actionRow.createEl('button', { cls: 'ft-remove-person-btn', text: '⊖ Aus Baum entfernen', title: 'Notiz bleibt erhalten, nur type: person wird entfernt' });
+        removeBtn.addEventListener('click', (e) => { e.stopPropagation(); this.removeFromTree(person); });
+        const deleteBtn = actionRow.createEl('button', { cls: 'ft-delete-person-btn', text: '🗑 Notiz löschen', title: 'Notiz dauerhaft aus dem Vault löschen' });
         deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); this.deletePerson(person); });
 
         node.addEventListener('click', (e) => {
@@ -617,12 +630,18 @@ export class FamilyTreeView extends ItemView {
         addBtn.addEventListener('click', (e) => { e.stopPropagation(); new AddPersonModal(this.app, relation, person, this.settings.personFolder, () => this.render(), this.persons).open(); });
     }
 
+    private async removeFromTree(person: Person) {
+        await this.app.fileManager.processFrontMatter(person.file, (fm) => { delete fm.type; });
+        await this.render();
+    }
+
     private async deletePerson(person: Person) {
         const confirmed = await new Promise<boolean>(resolve => {
             const modal = new (class extends Modal {
                 onOpen() {
-                    this.contentEl.createEl('h3', { text: 'Person löschen?' });
-                    this.contentEl.createEl('p', { text: `"${person.name}" wird dauerhaft gelöscht. Verweise in anderen Notizen werden nicht automatisch bereinigt.` });
+                    this.contentEl.createEl('h3', { text: 'Notiz dauerhaft löschen?' });
+                    this.contentEl.createEl('p', { text: `Die Notiz "${person.name}" wird unwiderruflich aus dem Vault gelöscht. Verweise in anderen Notizen werden nicht bereinigt.` });
+                    this.contentEl.createEl('p', { cls: 'ft-modal-hint', text: '💡 Tipp: "Aus Baum entfernen" behält die Notiz und entfernt nur type: person.' });
                     const footer = this.contentEl.createDiv({ cls: 'ft-modal-footer' });
                     footer.createEl('button', { text: 'Abbrechen', cls: 'ft-modal-btn' })
                         .addEventListener('click', () => { this.close(); resolve(false); });
