@@ -315,14 +315,14 @@ export class FamilyTreeView extends ItemView {
             [key: string]: unknown;
         }
         const contacts: DemoContact[] = [
-            { name: 'Wilhelm Bauer', born: '12.03.1920', died: '07.11.1985', spouse: 'Martha Bauer', children: ['Klaus Bauer'], job: 'Schreiner', city: 'München' },
-            { name: 'Martha Bauer',  born: '25.08.1923', died: '14.02.2001', spouse: 'Wilhelm Bauer', children: ['Klaus Bauer'], job: 'Hausfrau', city: 'München' },
-            { name: 'Klaus Bauer',   born: '03.06.1950', parents: ['Wilhelm Bauer', 'Martha Bauer'], spouse: 'Ingrid Bauer', children: ['Tobias Bauer', 'Lisa Bauer'], job: 'Ingenieur', city: 'Hamburg', email: 'k.bauer@example.com' },
-            { name: 'Ingrid Bauer',  born: '17.01.1952', spouse: 'Klaus Bauer', children: ['Tobias Bauer', 'Lisa Bauer'], job: 'Lehrerin', city: 'Hamburg' },
-            { name: 'Tobias Bauer',  born: '22.09.1978', parents: ['Klaus Bauer', 'Ingrid Bauer'], spouse: 'Anna Bauer', children: ['Emma Bauer'], job: 'Softwareentwickler', city: 'Berlin', email: 'tobias.bauer@example.com', phone: '+49 30 12345678' },
-            { name: 'Anna Bauer',    born: '05.04.1980', spouse: 'Tobias Bauer', children: ['Emma Bauer'], job: 'Ärztin', city: 'Berlin', hobby: 'Fotografie' },
-            { name: 'Lisa Bauer',    born: '14.12.1981', parents: ['Klaus Bauer', 'Ingrid Bauer'], job: 'Designerin', city: 'Stuttgart', hobby: 'Reisen' },
-            { name: 'Emma Bauer',    born: '30.07.2008', parents: ['Tobias Bauer', 'Anna Bauer'], city: 'Berlin', school: 'Humboldt-Gymnasium' },
+            { name: 'Wilhelm Bauer', born: '12.03.1920', died: '07.11.1985', spouse: 'Martha Bauer', children: ['Klaus Bauer'], job: 'Carpenter', city: 'Munich' },
+            { name: 'Martha Bauer',  born: '25.08.1923', died: '14.02.2001', spouse: 'Wilhelm Bauer', children: ['Klaus Bauer'], job: 'Homemaker', city: 'Munich' },
+            { name: 'Klaus Bauer',   born: '03.06.1950', parents: ['Wilhelm Bauer', 'Martha Bauer'], spouse: 'Ingrid Bauer', children: ['Tobias Bauer', 'Lisa Bauer'], job: 'Engineer', city: 'Hamburg', email: 'k.bauer@example.com' },
+            { name: 'Ingrid Bauer',  born: '17.01.1952', spouse: 'Klaus Bauer', children: ['Tobias Bauer', 'Lisa Bauer'], job: 'Teacher', city: 'Hamburg' },
+            { name: 'Tobias Bauer',  born: '22.09.1978', parents: ['Klaus Bauer', 'Ingrid Bauer'], spouse: 'Anna Bauer', children: ['Emma Bauer'], job: 'Software Developer', city: 'Berlin', email: 'tobias.bauer@example.com', phone: '+49 30 12345678' },
+            { name: 'Anna Bauer',    born: '05.04.1980', spouse: 'Tobias Bauer', children: ['Emma Bauer'], job: 'Physician', city: 'Berlin', hobby: 'Photography' },
+            { name: 'Lisa Bauer',    born: '14.12.1981', parents: ['Klaus Bauer', 'Ingrid Bauer'], job: 'Designer', city: 'Stuttgart', hobby: 'Travel' },
+            { name: 'Emma Bauer',    born: '30.07.2008', parents: ['Tobias Bauer', 'Anna Bauer'], city: 'Berlin', school: 'Humboldt High School' },
         ];
 
         const skip = new Set(['name']);
