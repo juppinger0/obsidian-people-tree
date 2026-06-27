@@ -1,5 +1,7 @@
 # People Tree — Obsidian Plugin
 
+> **Requirements:** Obsidian **1.4.0** or later · Desktop and Mobile · No external dependencies
+
 An interactive family tree, org chart and timeline viewer for [Obsidian](https://obsidian.md). All data lives in your vault as plain Markdown notes with YAML frontmatter — no external services, no proprietary formats, no telemetry.
 
 ---
@@ -23,7 +25,7 @@ An interactive family tree, org chart and timeline viewer for [Obsidian](https:/
 Search for **"People Tree"** in Obsidian → Settings → Community plugins.
 
 ### Manual
-1. Download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/juppinger0/obsidian-family-tree/releases).
+1. Download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/juppinger0/obsidian-people-tree/releases).
 2. Copy all three files into your vault under `.obsidian/plugins/people-tree/`.
 3. In Obsidian: **Settings → Community plugins → enable "People Tree"**.
 4. Click the 👥 icon in the left ribbon, or run **"Open People Tree"** from the command palette.
@@ -150,11 +152,23 @@ The uploaded photo is saved to the configured *Photos folder* (default: `Attachm
 
 ---
 
+## Requirements
+
+| | |
+|---|---|
+| Obsidian | **1.4.0** or later |
+| Platform | Desktop (Windows, macOS, Linux) and Mobile (iOS, Android) |
+| Dependencies | None — fully self-contained |
+
+The plugin uses only the official Obsidian API (`metadataCache`, `fileManager.processFrontMatter`, `vault.createBinary`). No npm packages are bundled at runtime.
+
+---
+
 ## Development
 
 ```bash
-git clone https://github.com/juppinger0/obsidian-family-tree
-cd obsidian-family-tree
+git clone https://github.com/juppinger0/obsidian-people-tree
+cd obsidian-people-tree
 npm install
 npm run build        # production build → main.js
 ```
