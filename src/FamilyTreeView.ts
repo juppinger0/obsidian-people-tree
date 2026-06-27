@@ -869,6 +869,24 @@ export class FamilyTreeView extends ItemView {
     }
 
     private async removeFromTree(person: Person) {
+        const confirmed = await new Promise<boolean>(resolve => {
+            const modal = new (class extends Modal {
+                onOpen() {
+                    this.contentEl.createEl('h3', { text: `"${person.name}" aus dem Baum entfernen?` });
+                    this.contentEl.createEl('p', { text: 'Die Notiz bleibt unverändert im Vault — sie wird nur aus dieser Ansicht ausgeblendet.' });
+                    this.contentEl.createEl('p', { cls: 'ft-modal-hint', text: '💡 Über "+ Person" kann die Person jederzeit wieder eingeblendet werden.' });
+                    const footer = this.contentEl.createDiv({ cls: 'ft-modal-footer' });
+                    footer.createEl('button', { text: 'Abbrechen', cls: 'ft-modal-btn' })
+                        .addEventListener('click', () => { this.close(); resolve(false); });
+                    const btn = footer.createEl('button', { text: 'Entfernen', cls: 'ft-modal-btn' });
+                    btn.style.marginLeft = '8px';
+                    btn.addEventListener('click', () => { this.close(); resolve(true); });
+                }
+                onClose() { this.contentEl.empty(); }
+            })(this.app);
+            modal.open();
+        });
+        if (!confirmed) return;
         await this.app.fileManager.processFrontMatter(person.file, (fm) => { fm['hidden'] = true; });
         await this.render();
     }
