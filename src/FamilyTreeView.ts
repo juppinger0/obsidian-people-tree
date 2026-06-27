@@ -181,14 +181,29 @@ export class FamilyTreeView extends ItemView {
     private async createPersonNote() {
         const folder = this.settings.personFolder?.trim() || '';
         const base = 'New Person';
-        const path = folder ? `${folder}/${base}.md` : `${base}.md`;
+        const filePath = folder ? `${folder}/${base}.md` : `${base}.md`;
         if (folder && !this.app.vault.getAbstractFileByPath(folder)) {
             await this.app.vault.createFolder(folder);
         }
-        if (!this.app.vault.getAbstractFileByPath(path)) {
-            await this.app.vault.create(path, `---\ntype: person\nname: ${base}\nborn: \ndied: \nparents: \nspouse: \nchildren: \n---\n`);
+        if (!this.app.vault.getAbstractFileByPath(filePath)) {
+            await this.app.vault.create(filePath, `---\ntype: person\nname: ${base}\nborn: \ndied: \nparents: \nspouse: \nchildren: \n---\n`);
         }
-        // Direkt in Tree-Ansicht zeigen, Karte aufklappen, Name-Feld fokussieren
+
+        // Wait for metadataCache to index the new file before rendering —
+        // otherwise loadPersons() finds 0 persons and shows onboarding again.
+        await new Promise<void>((resolve) => {
+            let settled = false;
+            const timeout = window.setTimeout(() => { settled = true; resolve(); }, 800);
+            const ref = this.app.metadataCache.on('changed', (f) => {
+                if (!settled && f.path === filePath) {
+                    window.clearTimeout(timeout);
+                    this.app.metadataCache.offref(ref);
+                    settled = true;
+                    resolve();
+                }
+            });
+        });
+
         this.viewMode = 'tree';
         this.expandedPersons.add(base);
         await this.render();
