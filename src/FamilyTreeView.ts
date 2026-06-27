@@ -79,8 +79,10 @@ export class FamilyTreeView extends ItemView {
     // ── Layout ────────────────────────────────────────────────────────────
 
     private assignGenerations() {
+        // Seed: persons with no known parents start at gen 0
         for (const p of this.persons.values())
             if (!p.parents.some(n => this.persons.has(n))) p.generation = 0;
+        // Propagate downward through children
         let changed = true;
         while (changed) {
             changed = false;
@@ -93,18 +95,35 @@ export class FamilyTreeView extends ItemView {
             }
         }
         for (const p of this.persons.values()) if (p.generation < 0) p.generation = 0;
+        // Align spouses to the same (deeper) generation so they appear on the same row
+        changed = true;
+        while (changed) {
+            changed = false;
+            for (const p of this.persons.values()) {
+                if (!p.spouse) continue;
+                const sp = this.persons.get(p.spouse);
+                if (!sp || sp.generation === p.generation) continue;
+                const maxGen = Math.max(p.generation, sp.generation);
+                if (p.generation < maxGen)  { p.generation  = maxGen; changed = true; }
+                if (sp.generation < maxGen) { sp.generation = maxGen; changed = true; }
+            }
+        }
     }
 
     private assignColumns() {
+        // Place spouses adjacent within each generation row
         for (const persons of this.byGeneration().values()) {
             const placed = new Set<string>();
             const ordered: Person[] = [];
             for (const p of persons) {
                 if (placed.has(p.name)) continue;
                 ordered.push(p); placed.add(p.name);
+                // Only place spouse here if they are in the SAME generation
                 if (p.spouse) {
                     const sp = this.persons.get(p.spouse);
-                    if (sp && !placed.has(sp.name)) { ordered.push(sp); placed.add(sp.name); }
+                    if (sp && sp.generation === p.generation && !placed.has(sp.name)) {
+                        ordered.push(sp); placed.add(sp.name);
+                    }
                 }
             }
             ordered.forEach((p, i) => { p.col = i; });
@@ -323,6 +342,7 @@ export class FamilyTreeView extends ItemView {
             await this.app.vault.create(path, lines.join('\n'));
         }
 
+        await this.plugin.clearPositions(); // start with clean auto-layout
         await new Promise<void>(resolve => window.setTimeout(resolve, 800));
         this.viewMode = 'tree';
         await this.render();
@@ -396,9 +416,10 @@ export class FamilyTreeView extends ItemView {
         const pos: Map<string, { x: number; y: number }> = new Map();
 
         for (const [gen, persons] of byGen) {
-            const rowW = persons.length * NODE_W + (persons.length - 1) * H_GAP;
+            const sorted = [...persons].sort((a, b) => a.col - b.col);
+            const rowW = sorted.length * NODE_W + (sorted.length - 1) * H_GAP;
             const startX = (totalW - rowW) / 2;
-            persons.forEach((p, i) => {
+            sorted.forEach((p, i) => {
                 const x = startX + i * (NODE_W + H_GAP);
                 const y = V_GAP / 2 + gen * (NODE_H + V_GAP);
                 pos.set(p.name, { x, y });
