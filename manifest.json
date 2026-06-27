@@ -1,9 +1,9 @@
 {
-  "id": "family-tree",
-  "name": "Family Tree",
-  "version": "0.1.0",
+  "id": "people-tree",
+  "name": "People Tree",
+  "version": "0.3.0",
   "minAppVersion": "1.4.0",
-  "description": "Interaktiver Stammbaum aus YAML-Frontmatter mit Inline-Editing",
+  "description": "Interactive family trees, org charts and timelines from YAML frontmatter — with avatars, inline editing and multiple view modes",
   "author": "Jörg Lortz",
   "authorUrl": "https://github.com/juppinger0",
   "isDesktopOnly": false
