@@ -485,66 +485,56 @@ export class FamilyTreeView extends ItemView {
     // ── Avatar ────────────────────────────────────────────────────────────
 
     private renderAvatarCircle(parent: HTMLElement, person: Person, size: number, uploadable = false) {
-        const wrap = parent.createDiv({ cls: 'ft-avatar-wrap' });
-        wrap.style.width = size + 'px';
-        wrap.style.height = size + 'px';
-        wrap.style.minWidth = size + 'px';
+        // Use <label> when uploadable so the nested <input type=file> is triggered natively on click
+        const wrap = uploadable
+            ? parent.createEl('label', { cls: 'ft-avatar-wrap ft-avatar-uploadable', title: 'Foto hochladen' })
+            : parent.createDiv({ cls: 'ft-avatar-wrap' });
+        (wrap as HTMLElement).style.width = size + 'px';
+        (wrap as HTMLElement).style.height = size + 'px';
+        (wrap as HTMLElement).style.minWidth = size + 'px';
 
         if (uploadable) {
-            wrap.addClass('ft-avatar-uploadable');
-            wrap.title = 'Foto hochladen';
-            wrap.addEventListener('click', (e) => { e.stopPropagation(); this.handleAvatarUpload(person); });
+            const input = (wrap as HTMLElement).createEl('input', { type: 'file' }) as HTMLInputElement;
+            input.accept = 'image/*';
+            input.style.cssText = 'display:none;position:absolute;width:0;height:0';
+            input.addEventListener('change', async () => {
+                const file = input.files?.[0];
+                if (!file) return;
+                const buffer = await file.arrayBuffer();
+                const ext = (file.name.split('.').pop() ?? 'jpg').toLowerCase();
+                const folderPath = '02 Areas/Familie/Fotos';
+                const targetPath = `${folderPath}/${person.name}.${ext}`;
+                try {
+                    if (!this.app.vault.getAbstractFileByPath(folderPath)) {
+                        await this.app.vault.createFolder(folderPath);
+                    }
+                    const existing = this.app.vault.getAbstractFileByPath(targetPath);
+                    if (existing instanceof TFile) {
+                        await this.app.vault.modifyBinary(existing, buffer);
+                    } else {
+                        await this.app.vault.createBinary(targetPath, buffer);
+                    }
+                    await this.app.fileManager.processFrontMatter(person.file, (fm) => { fm.avatar = targetPath; });
+                    await this.render();
+                } catch (err) {
+                    console.error('[PeopleTree] Avatar-Upload:', err);
+                }
+            });
         }
 
         if (person.avatar) {
             const f = this.app.vault.getAbstractFileByPath(person.avatar);
             if (f instanceof TFile) {
-                const img = wrap.createEl('img', { cls: 'ft-avatar' });
+                const img = (wrap as HTMLElement).createEl('img', { cls: 'ft-avatar' });
                 img.src = this.app.vault.getResourcePath(f);
-                if (uploadable) {
-                    const overlay = wrap.createDiv({ cls: 'ft-avatar-overlay', text: '📷' });
-                    overlay.setAttribute('aria-hidden', 'true');
-                }
+                if (uploadable) (wrap as HTMLElement).createDiv({ cls: 'ft-avatar-overlay', text: '📷' });
                 return;
             }
         }
 
         const initials = person.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
-        wrap.createDiv({ cls: 'ft-avatar-initials', text: initials });
-        if (uploadable) wrap.createDiv({ cls: 'ft-avatar-overlay', text: '📷' }).setAttribute('aria-hidden', 'true');
-    }
-
-    private async handleAvatarUpload(person: Person) {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.style.display = 'none';
-        document.body.appendChild(input);
-        input.addEventListener('change', async () => {
-            const file = input.files?.[0];
-            document.body.removeChild(input);
-            if (!file) return;
-            const buffer = await file.arrayBuffer();
-            const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-            const folderPath = '02 Areas/Familie/Fotos';
-            const targetPath = `${folderPath}/${person.name}.${ext}`;
-            try {
-                if (!this.app.vault.getAbstractFileByPath(folderPath)) {
-                    await this.app.vault.createFolder(folderPath);
-                }
-                const existing = this.app.vault.getAbstractFileByPath(targetPath);
-                if (existing instanceof TFile) {
-                    await this.app.vault.modifyBinary(existing, buffer);
-                } else {
-                    await this.app.vault.createBinary(targetPath, buffer);
-                }
-                await this.app.fileManager.processFrontMatter(person.file, (fm) => { fm.avatar = targetPath; });
-                await this.render();
-            } catch (err) {
-                console.error('Avatar-Upload fehlgeschlagen:', err);
-            }
-        });
-        input.click();
+        (wrap as HTMLElement).createDiv({ cls: 'ft-avatar-initials', text: initials });
+        if (uploadable) (wrap as HTMLElement).createDiv({ cls: 'ft-avatar-overlay', text: '📷' });
     }
 
     // ── Detail fields ─────────────────────────────────────────────────────
