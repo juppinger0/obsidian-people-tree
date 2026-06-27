@@ -34,6 +34,9 @@ export class FamilyTreeView extends ItemView {
     private expandedPersons: Set<string> = new Set();
     private viewMode: ViewMode = 'tree';
     private filterText = '';
+    private sortField = 'name';
+    private sortDir: 1 | -1 = 1;
+    private listTbody: HTMLElement | null = null;
 
     constructor(leaf: WorkspaceLeaf, private app: App) { super(leaf); }
 
@@ -178,7 +181,7 @@ export class FamilyTreeView extends ItemView {
 
         if (this.viewMode === 'list') {
             const search = tb.createEl('input', { type: 'text', placeholder: '🔍 Suchen…', cls: 'ft-search', value: this.filterText });
-            search.addEventListener('input', () => { this.filterText = search.value; this.render(); });
+            search.addEventListener('input', () => { this.filterText = search.value; this.rebuildListBody(); });
         }
 
         const hint = this.viewMode !== 'list'
@@ -331,28 +334,65 @@ export class FamilyTreeView extends ItemView {
         const table = container.createEl('table', { cls: 'ft-table' });
         const thead = table.createEl('thead');
         const headRow = thead.createEl('tr');
-        for (const h of ['', 'Name', 'Geburt', 'Tod', 'Eltern', 'Ehepartner', 'Kinder', '']) {
-            headRow.createEl('th', { text: h });
+
+        const cols: { label: string; field: string | null }[] = [
+            { label: '', field: null },
+            { label: 'Name', field: 'name' },
+            { label: 'Geburt', field: 'born' },
+            { label: 'Tod', field: 'died' },
+            { label: 'Eltern', field: 'parents' },
+            { label: 'Ehepartner', field: 'spouse' },
+            { label: 'Kinder', field: 'children' },
+            { label: '', field: null },
+        ];
+
+        for (const col of cols) {
+            const th = headRow.createEl('th', { text: col.field ? col.label : '' });
+            if (col.field) {
+                th.addClass('ft-th-sortable');
+                const isActive = this.sortField === col.field;
+                if (isActive) th.createSpan({ cls: 'ft-sort-arrow', text: this.sortDir === 1 ? ' ↑' : ' ↓' });
+                th.addEventListener('click', () => {
+                    if (this.sortField === col.field) this.sortDir = this.sortDir === 1 ? -1 : 1;
+                    else { this.sortField = col.field!; this.sortDir = 1; }
+                    this.render();
+                });
+            }
         }
 
-        const tbody = table.createEl('tbody');
+        this.listTbody = table.createEl('tbody') as HTMLElement;
+        this.rebuildListBody();
+    }
+
+    private rebuildListBody() {
+        if (!this.listTbody) return;
+        this.listTbody.empty();
+
         const filter = this.filterText.toLowerCase();
         const persons = [...this.persons.values()]
             .filter(p => !filter || p.name.toLowerCase().includes(filter) ||
                 p.born.toLowerCase().includes(filter) ||
                 p.parents.join(' ').toLowerCase().includes(filter))
-            .sort((a, b) => a.name.localeCompare(b.name, 'de'));
+            .sort((a, b) => {
+                let va = '', vb = '';
+                const f = this.sortField as keyof Person;
+                const av = a[f], bv = b[f];
+                if (Array.isArray(av)) va = (av as string[]).join(', ');
+                else va = String(av ?? '');
+                if (Array.isArray(bv)) vb = (bv as string[]).join(', ');
+                else vb = String(bv ?? '');
+                return va.localeCompare(vb, 'de') * this.sortDir;
+            });
 
         for (const person of persons) {
-            const row = tbody.createEl('tr', { cls: 'ft-list-row' });
+            const row = this.listTbody.createEl('tr', { cls: 'ft-list-row' });
 
-            // Avatar
+            // Avatar (klickbar für Upload)
             const avatarCell = row.createEl('td', { cls: 'ft-list-avatar-cell' });
-            this.renderAvatarCircle(avatarCell, person, 32);
+            this.renderAvatarCircle(avatarCell, person, 32, true);
 
             // Name
-            const nameCell = row.createEl('td', { cls: 'ft-list-name' });
-            nameCell.textContent = person.name;
+            row.createEl('td', { cls: 'ft-list-name', text: person.name });
 
             // Born / Died / Parents / Spouse / Children
             row.createEl('td', { text: person.born || '—' });
@@ -363,8 +403,8 @@ export class FamilyTreeView extends ItemView {
 
             // Actions
             const actCell = row.createEl('td', { cls: 'ft-list-actions' });
-            const openBtn = actCell.createEl('button', { text: '↗', cls: 'ft-list-btn', title: 'Notiz öffnen' });
-            openBtn.addEventListener('click', () => this.app.workspace.openLinkText(person.file.path, ''));
+            actCell.createEl('button', { text: '↗', cls: 'ft-list-btn', title: 'Notiz öffnen' })
+                .addEventListener('click', () => this.app.workspace.openLinkText(person.file.path, ''));
 
             // Inline editing on cell click
             for (const [i, field] of ['born', 'died', 'parents', 'spouse', 'children'].entries()) {
@@ -444,24 +484,67 @@ export class FamilyTreeView extends ItemView {
 
     // ── Avatar ────────────────────────────────────────────────────────────
 
-    private renderAvatarCircle(parent: HTMLElement, person: Person, size: number) {
+    private renderAvatarCircle(parent: HTMLElement, person: Person, size: number, uploadable = false) {
         const wrap = parent.createDiv({ cls: 'ft-avatar-wrap' });
         wrap.style.width = size + 'px';
         wrap.style.height = size + 'px';
         wrap.style.minWidth = size + 'px';
+
+        if (uploadable) {
+            wrap.addClass('ft-avatar-uploadable');
+            wrap.title = 'Foto hochladen';
+            wrap.addEventListener('click', (e) => { e.stopPropagation(); this.handleAvatarUpload(person); });
+        }
 
         if (person.avatar) {
             const f = this.app.vault.getAbstractFileByPath(person.avatar);
             if (f instanceof TFile) {
                 const img = wrap.createEl('img', { cls: 'ft-avatar' });
                 img.src = this.app.vault.getResourcePath(f);
+                if (uploadable) {
+                    const overlay = wrap.createDiv({ cls: 'ft-avatar-overlay', text: '📷' });
+                    overlay.setAttribute('aria-hidden', 'true');
+                }
                 return;
             }
         }
 
-        // Fallback: initials
         const initials = person.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
         wrap.createDiv({ cls: 'ft-avatar-initials', text: initials });
+        if (uploadable) wrap.createDiv({ cls: 'ft-avatar-overlay', text: '📷' }).setAttribute('aria-hidden', 'true');
+    }
+
+    private async handleAvatarUpload(person: Person) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.style.display = 'none';
+        document.body.appendChild(input);
+        input.addEventListener('change', async () => {
+            const file = input.files?.[0];
+            document.body.removeChild(input);
+            if (!file) return;
+            const buffer = await file.arrayBuffer();
+            const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+            const folderPath = '02 Areas/Familie/Fotos';
+            const targetPath = `${folderPath}/${person.name}.${ext}`;
+            try {
+                if (!this.app.vault.getAbstractFileByPath(folderPath)) {
+                    await this.app.vault.createFolder(folderPath);
+                }
+                const existing = this.app.vault.getAbstractFileByPath(targetPath);
+                if (existing instanceof TFile) {
+                    await this.app.vault.modifyBinary(existing, buffer);
+                } else {
+                    await this.app.vault.createBinary(targetPath, buffer);
+                }
+                await this.app.fileManager.processFrontMatter(person.file, (fm) => { fm.avatar = targetPath; });
+                await this.render();
+            } catch (err) {
+                console.error('Avatar-Upload fehlgeschlagen:', err);
+            }
+        });
+        input.click();
     }
 
     // ── Detail fields ─────────────────────────────────────────────────────

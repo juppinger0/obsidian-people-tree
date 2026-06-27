@@ -457,3 +457,41 @@
     transition: color 0.1s, border-color 0.1s;
 }
 .ft-list-btn:hover { color: var(--color-accent); border-color: var(--color-accent); }
+
+/* ── Sortable headers ──────────────────────────────────────────────────── */
+
+.ft-th-sortable {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.ft-th-sortable:hover { color: var(--color-accent); }
+
+.ft-sort-arrow {
+    color: var(--color-accent);
+    font-size: 0.85em;
+}
+
+/* ── Avatar upload overlay ─────────────────────────────────────────────── */
+
+.ft-avatar-uploadable {
+    cursor: pointer;
+    position: relative;
+}
+
+.ft-avatar-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85em;
+    pointer-events: none;
+}
+
+.ft-avatar-uploadable:hover .ft-avatar-overlay {
+    display: flex;
+}
