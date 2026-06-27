@@ -827,6 +827,12 @@
     color: var(--text-normal);
 }
 
+.ft-tl-dir-btn {
+    margin-left: 6px;
+    border-left: 1px solid var(--background-modifier-border);
+    padding-left: 12px;
+}
+
 /* ── Spouse marker ──────────────────────────────────────────────────────── */
 
 .ft-spouse-marker {
