@@ -1,8 +1,24 @@
 # People Tree — Obsidian Plugin
 
+![People Tree Banner](banner.png)
+
 > **Requirements:** Obsidian **1.7.0** or later · Desktop and Mobile · No external dependencies
 
 An interactive family tree, org chart and timeline viewer for [Obsidian](https://obsidian.md). All data lives in your vault as plain Markdown notes with YAML frontmatter — no external services, no proprietary formats, no telemetry.
+
+![Demo](demo.gif)
+
+---
+
+## Screenshots
+
+| Tree mode | Inline editing |
+|---|---|
+| ![Tree](https://raw.githubusercontent.com/juppinger0/obsidian-people-tree/main/screenshots/tree.png) | ![Detail](https://raw.githubusercontent.com/juppinger0/obsidian-people-tree/main/screenshots/detail.png) |
+
+| List mode + photo upload | Timeline mode |
+|---|---|
+| ![List](https://raw.githubusercontent.com/juppinger0/obsidian-people-tree/main/screenshots/list.png) | ![Timeline](https://raw.githubusercontent.com/juppinger0/obsidian-people-tree/main/screenshots/timeline.png) |
 
 ---
 
@@ -52,7 +68,7 @@ When no person notes exist yet you see two buttons:
 
 **1. Toolbar button** — Click **`+ Person`** at the top. A dialog opens where you enter a name and optional birth date. The note is created and linked automatically.
 
-**2. From within a person** — Expand any card with **▼** and click the **`+`** button next to *Eltern* (parents) or *Kinder* (children). This creates or links the person and updates both notes bidirectionally.
+**2. From within a person** — Expand any card with **▼** and click the **`+`** button next to *Parents* or *Children*. This creates or links the person and updates both notes bidirectionally.
 
 **3. Drag from file explorer** — Drag any Markdown note from Obsidian's left sidebar directly onto the tree canvas. The plugin adds `type: person` to its frontmatter and the note appears as a card immediately.
 
@@ -78,8 +94,8 @@ children:
 
 | Action | What happens |
 |--------|-------------|
-| **⊖ Aus Baum entfernen** | Note stays in your vault; `type: person` is hidden internally. The 👤 icon in the file explorer dims. You can re-add the person via **`+ Person`** → chips shown at the top. |
-| **🗑 Notiz löschen** | Note is permanently deleted from the vault. A confirmation dialog is shown first. |
+| **⊖ Remove from tree** | Note stays in your vault; `type: person` is hidden internally. The 👤 icon in the file explorer dims. You can re-add the person via **`+ Person`** → chips shown at the top. |
+| **🗑 Delete note** | Note is permanently moved to trash. A confirmation dialog is shown first. |
 
 ### Moving cards
 
