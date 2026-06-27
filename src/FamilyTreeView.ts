@@ -747,6 +747,13 @@ export class FamilyTreeView extends ItemView {
                 if (v !== raw) {
                     (person as Record<string, unknown>)[field] = v;
                     await this.app.fileManager.processFrontMatter(person.file, (fm) => { fm[field] = v || null; });
+                    if (field === 'name' && v && v !== person.file.basename) {
+                        try {
+                            const parentPath = person.file.parent?.path ?? '';
+                            const newPath = parentPath ? `${parentPath}/${v}.md` : `${v}.md`;
+                            await this.app.fileManager.renameFile(person.file, newPath);
+                        } catch { /* ignore if file already exists with that name */ }
+                    }
                 }
             }, () => { el.textContent = display ? display(raw) : raw; });
         });
