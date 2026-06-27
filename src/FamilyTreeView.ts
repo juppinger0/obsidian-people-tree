@@ -170,12 +170,16 @@ export class FamilyTreeView extends ItemView {
         steps.createEl('li', { text: 'Link people via parents, children and spouse fields.' });
         steps.createEl('li', { text: 'Edit names, dates and any custom field directly in the view — changes go straight to the note.' });
         steps.createEl('li', { text: 'Use + Person in the toolbar to add more people at any time.' });
-        if (this.settings.personFolder) {
-            card.createEl('p', { cls: 'ft-onboarding-hint', text: `Scanning folder: ${this.settings.personFolder}` });
-        }
+        const folderHint = this.settings.personFolder
+            ? `Scanning folder: ${this.settings.personFolder}`
+            : 'Tip: set a Person notes folder in Settings → People Tree to keep contacts organised.';
+        card.createEl('p', { cls: 'ft-onboarding-hint', text: folderHint });
 
-        const btn = card.createEl('button', { cls: 'ft-onboarding-btn', text: '+ Create first person' });
+        const btnRow = card.createDiv({ cls: 'ft-onboarding-btn-row' });
+        const btn = btnRow.createEl('button', { cls: 'ft-onboarding-btn', text: '+ Create first person' });
         btn.addEventListener('click', () => this.createPersonNote());
+        const demoBtn = btnRow.createEl('button', { cls: 'ft-onboarding-btn ft-onboarding-btn--demo', text: '🎭 Create sample family' });
+        demoBtn.addEventListener('click', () => this.createDemoContacts());
     }
 
     private async createPersonNote() {
@@ -211,6 +215,51 @@ export class FamilyTreeView extends ItemView {
             const nameEl = this.getCanvas()?.querySelector<HTMLElement>(`[data-person="${base}"] .ft-name`);
             nameEl?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
         }, 60);
+    }
+
+    private async createDemoContacts() {
+        const folder = this.settings.personFolder?.trim() || 'People';
+        if (!this.app.vault.getAbstractFileByPath(folder)) {
+            await this.app.vault.createFolder(folder);
+        }
+
+        interface DemoContact {
+            name: string; born?: string; died?: string;
+            parents?: string[]; spouse?: string; children?: string[];
+            [key: string]: unknown;
+        }
+        const contacts: DemoContact[] = [
+            { name: 'Wilhelm Bauer', born: '12.03.1920', died: '07.11.1985', spouse: 'Martha Bauer', children: ['Klaus Bauer'], job: 'Schreiner', city: 'München' },
+            { name: 'Martha Bauer',  born: '25.08.1923', died: '14.02.2001', spouse: 'Wilhelm Bauer', children: ['Klaus Bauer'], job: 'Hausfrau', city: 'München' },
+            { name: 'Klaus Bauer',   born: '03.06.1950', parents: ['Wilhelm Bauer', 'Martha Bauer'], spouse: 'Ingrid Bauer', children: ['Tobias Bauer', 'Lisa Bauer'], job: 'Ingenieur', city: 'Hamburg', email: 'k.bauer@example.com' },
+            { name: 'Ingrid Bauer',  born: '17.01.1952', spouse: 'Klaus Bauer', children: ['Tobias Bauer', 'Lisa Bauer'], job: 'Lehrerin', city: 'Hamburg' },
+            { name: 'Tobias Bauer',  born: '22.09.1978', parents: ['Klaus Bauer', 'Ingrid Bauer'], spouse: 'Anna Bauer', children: ['Emma Bauer'], job: 'Softwareentwickler', city: 'Berlin', email: 'tobias.bauer@example.com', phone: '+49 30 12345678' },
+            { name: 'Anna Bauer',    born: '05.04.1980', spouse: 'Tobias Bauer', children: ['Emma Bauer'], job: 'Ärztin', city: 'Berlin', hobby: 'Fotografie' },
+            { name: 'Lisa Bauer',    born: '14.12.1981', parents: ['Klaus Bauer', 'Ingrid Bauer'], job: 'Designerin', city: 'Stuttgart', hobby: 'Reisen' },
+            { name: 'Emma Bauer',    born: '30.07.2008', parents: ['Tobias Bauer', 'Anna Bauer'], city: 'Berlin', school: 'Humboldt-Gymnasium' },
+        ];
+
+        const skip = new Set(['name']);
+        for (const c of contacts) {
+            const path = `${folder}/${c.name}.md`;
+            if (this.app.vault.getAbstractFileByPath(path)) continue;
+            const lines = ['---', 'type: person', `name: ${c.name}`];
+            for (const [k, v] of Object.entries(c)) {
+                if (skip.has(k)) continue;
+                if (Array.isArray(v)) {
+                    lines.push(`${k}:`);
+                    (v as string[]).forEach(item => lines.push(`  - ${item}`));
+                } else {
+                    lines.push(`${k}: ${v}`);
+                }
+            }
+            lines.push('---', '');
+            await this.app.vault.create(path, lines.join('\n'));
+        }
+
+        await new Promise<void>(resolve => window.setTimeout(resolve, 800));
+        this.viewMode = 'tree';
+        await this.render();
     }
 
     // ── Toolbar ───────────────────────────────────────────────────────────

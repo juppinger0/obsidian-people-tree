@@ -8,7 +8,7 @@ export interface PeopleTreeSettings {
 
 const DEFAULT_SETTINGS: PeopleTreeSettings = {
     photosFolder: 'Attachments/Photos',
-    personFolder: '',
+    personFolder: 'People',
 };
 
 export default class PeopleTreePlugin extends Plugin {

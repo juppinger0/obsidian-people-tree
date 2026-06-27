@@ -611,8 +611,14 @@
     margin: 0;
 }
 
-.ft-onboarding-btn {
+.ft-onboarding-btn-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
     margin-top: 8px;
+}
+.ft-onboarding-btn {
     padding: 8px 22px;
     border-radius: 8px;
     border: none;
@@ -623,7 +629,11 @@
     cursor: pointer;
     transition: opacity 0.15s;
 }
-
+.ft-onboarding-btn--demo {
+    background: var(--background-modifier-border);
+    color: var(--text-normal);
+    border: 1.5px solid var(--background-modifier-border-hover);
+}
 .ft-onboarding-btn:hover { opacity: 0.85; }
 
 /* ── New person button (toolbar) ────────────────────────────────────────── */
